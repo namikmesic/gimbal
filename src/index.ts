@@ -1,9 +1,55 @@
 import { OrchestratorImpl } from "./orchestrator.js";
 import { ProxyConfig } from "./types.js";
 
+function getSelfImproveAugmentation(role: string): string {
+  const base = `
+
+=== SELF-IMPROVEMENT MODE ===
+You are working on gimbal itself - the multi-agent system you're part of.
+Key files to understand your own architecture:
+- CLAUDE.md: Development guidance and build commands
+- docs/ARCHITECTURE.md: Technical architecture with diagrams
+- RETROSPECTIVE.md: Past learnings and process improvements
+- CHANGELOG.md: Recent changes and decision rationale
+`;
+
+  const roleSpecific: Record<string, string> = {
+    architect: `
+Focus on improvements that enhance gimbal's multi-agent coordination:
+- Message passing and channel communication
+- Workflow phase transitions and quality gates
+- Agent specialization and tool permissions
+- Retrospective quality and process learning
+Review RETROSPECTIVE.md for patterns and recurring issues before proposing.`,
+
+    developer: `
+You know gimbal's build system:
+- npm run build: Compile TypeScript to dist/
+- npx tsc --noEmit: Type-check without emitting
+- npm run dev: Run in development mode
+Test thoroughly - you're modifying the system you run on.
+After changes, verify with: npm run build && node dist/cli.js --help`,
+
+    staff: `
+Apply extra scrutiny - changes to gimbal affect all future improvement cycles.
+After approving commits, document process improvements in RETROSPECTIVE.md.
+Consider: "Would this change have helped in past retrospectives?"
+Extract reusable principles from this self-improvement cycle.`,
+
+    knowledge: `
+You have special insight into gimbal's own source code.
+Prioritize architecture understanding from docs/ARCHITECTURE.md.
+Help other agents understand how proposed changes affect the whole system.
+Reference specific files: types.ts for interfaces, orchestrator.ts for coordination.`,
+  };
+
+  return base + (roleSpecific[role] || "");
+}
+
 export interface GimbalOptions {
   workingDirectory?: string;
   initialDirection?: string;
+  selfImproveMode?: boolean;
 }
 
 export async function createGimbal(options: GimbalOptions = {}): Promise<void> {
@@ -33,7 +79,8 @@ Do NOT proceed to implementation until Staff approves your proposal.
 
 During retrospectives, share your observations on:
 - What worked well in the proposal/planning phase
-- What could be improved in requirements or communication`,
+- What could be improved in requirements or communication` +
+          (options.selfImproveMode ? getSelfImproveAugmentation("architect") : ""),
         model: "sonnet",
         tools: ["Read", "Glob", "Grep"], // Can explore code but not modify
       },
@@ -59,7 +106,8 @@ Write clean, minimal code. Never skip the test plan.
 
 During retrospectives, share your observations on:
 - What worked well in the implementation/testing phase
-- What could be improved in the process or tooling`,
+- What could be improved in the process or tooling` +
+          (options.selfImproveMode ? getSelfImproveAugmentation("developer") : ""),
         model: "sonnet",
         tools: ["Read", "Edit", "Write", "Bash", "Glob", "Grep"], // Full code access
       },
@@ -86,7 +134,8 @@ Your responsibilities:
 - Keep scope tight: One improvement at a time, no feature creep
 
 You have access to Bash for git commands (git status, git log, git diff).
-Be concise but authoritative. Nothing moves to implementation without your approval.`,
+Be concise but authoritative. Nothing moves to implementation without your approval.` +
+          (options.selfImproveMode ? getSelfImproveAugmentation("staff") : ""),
         model: "opus",
         tools: ["Read", "Write", "Bash", "Glob", "Grep"], // Can review code, use git, and write docs
       },
@@ -105,7 +154,8 @@ When asked, respond with:
 - Code snippets
 - Concise explanations
 
-Do not speculate. Only answer based on what you've read.`,
+Do not speculate. Only answer based on what you've read.` +
+          (options.selfImproveMode ? getSelfImproveAugmentation("knowledge") : ""),
         model: "sonnet",
         tools: ["Read", "Glob", "Grep"],
       },
@@ -114,7 +164,11 @@ Do not speculate. Only answer based on what you've read.`,
 
   const orchestrator = new OrchestratorImpl(config);
 
-  console.log("\n=== Self-Improving Agent Demo ===\n");
+  if (options.selfImproveMode) {
+    console.log("\n=== Gimbal Self-Improvement Session ===\n");
+  } else {
+    console.log("\n=== Self-Improving Agent Demo ===\n");
+  }
   console.log("Agents:", orchestrator.getAgentIds().join(", "));
   console.log("Working directory:", config.workingDirectory);
 

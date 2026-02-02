@@ -9,6 +9,7 @@ interface ParsedArgs {
   direction?: string;
   help?: boolean;
   version?: boolean;
+  selfImprove?: boolean;
 }
 
 function parseArgs(args: string[]): ParsedArgs {
@@ -33,6 +34,8 @@ function parseArgs(args: string[]): ParsedArgs {
         process.exit(1);
       }
       parsed.direction = args[++i];
+    } else if (arg === "--self-improve") {
+      parsed.selfImprove = true;
     } else {
       console.error(`Error: Unknown option: ${arg}\n`);
       showHelp();
@@ -48,16 +51,18 @@ function showHelp(): void {
 Usage: gimbal [options]
 
 Options:
-  --dir <path>        Working directory for agents (default: current directory)
-  --direction <text>  Initial direction for agents (skips interactive prompt)
-  --help, -h          Show this help message
-  --version, -v       Show version number
+  --dir <path>         Working directory for agents (default: current directory)
+  --direction <text>   Initial direction for agents (skips interactive prompt)
+  --self-improve       Run in self-improvement mode (gimbal improves itself)
+  --help, -h           Show this help message
+  --version, -v        Show version number
 
 Examples:
   gimbal                                    # Interactive mode
   gimbal --dir ./my-project                 # Specify working directory
   gimbal --direction "Fix auth bug"         # Pre-set direction
   gimbal --dir ./project --direction "..."  # Combined options
+  gimbal --self-improve                     # Self-improvement mode
 `);
 }
 
@@ -91,6 +96,32 @@ async function getInitialDirection(): Promise<string> {
       }
     );
   });
+}
+
+async function getSelfImproveDirection(): Promise<string> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    rl.question(
+      "\n[Self-Improve] What should gimbal improve about itself? (Enter for default): ",
+      (input) => {
+        rl.close();
+        resolve(
+          input.trim() ||
+            "Analyze gimbal's recent retrospectives and changelog, then propose one improvement to the multi-agent coordination or workflow."
+        );
+      }
+    );
+  });
+}
+
+function getGimbalRootDir(): string {
+  // From dist/cli.js, go up one level to project root
+  const cliDir = path.dirname(new URL(import.meta.url).pathname);
+  return path.resolve(cliDir, "..");
 }
 
 function validateDirectory(dirPath: string): void {
@@ -137,10 +168,21 @@ async function main() {
     workingDirectory = resolvedDir;
   }
 
+  // Handle self-improve mode
+  if (args.selfImprove) {
+    if (args.dir) {
+      console.warn("Warning: --dir is ignored in --self-improve mode");
+    }
+    workingDirectory = getGimbalRootDir();
+    console.log(`[Self-Improve Mode] Working on gimbal at: ${workingDirectory}`);
+  }
+
   // Get direction (from flag or interactive prompt)
   let direction: string | undefined;
   if (args.direction) {
     direction = args.direction;
+  } else if (args.selfImprove) {
+    direction = await getSelfImproveDirection();
   } else {
     direction = await getInitialDirection();
   }
@@ -155,6 +197,7 @@ async function main() {
   await createGimbal({
     workingDirectory,
     initialDirection: direction,
+    selfImproveMode: args.selfImprove || false,
   });
 }
 
