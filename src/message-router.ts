@@ -10,6 +10,7 @@ import {
 } from "./types.js";
 import { MessageStoreImpl } from "./message-store.js";
 import { TranscriptWriterImpl } from "./transcript-writer.js";
+import { renderMarkdown } from "./markdown-renderer.js";
 
 type WakeupCallback = () => void;
 
@@ -65,7 +66,7 @@ export class MessageRouterImpl implements IMessageRouter {
     this.transcriptWriter?.recordMessage(message);
     console.log(`\n${"─".repeat(60)}`);
     console.log(`[${from} -> ${to}]`);
-    console.log(envelope.content);
+    console.log(renderMarkdown(envelope.content));
     console.log(`${"─".repeat(60)}\n`);
     this.notifyAgent(to);
   }
@@ -106,7 +107,7 @@ export class MessageRouterImpl implements IMessageRouter {
 
     console.log(`\n${"─".repeat(60)}`);
     console.log(`[${from} -> ${channelId}] (${deliveredCount} recipients)`);
-    console.log(envelope.content);
+    console.log(renderMarkdown(envelope.content));
     console.log(`${"─".repeat(60)}\n`);
   }
 
