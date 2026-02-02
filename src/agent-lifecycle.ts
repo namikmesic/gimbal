@@ -1,57 +1,105 @@
 import { query, createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
-import { AgentConfig, AgentState, Message, SignOffCallback } from "./types.js";
-import { MessageQueue } from "./message-queue.js";
+import {
+  AgentConfig,
+  AgentId,
+  AgentLifecycleState,
+  AgentLifecycle as IAgentLifecycle,
+  Message,
+  SignOffCallback,
+  ChannelRegistry,
+} from "./types.js";
+import { MessageStoreImpl } from "./message-store.js";
+import { MessageRouterImpl } from "./message-router.js";
 
-export class AgentSession {
+interface AgentState {
+  id: string;
+  name: string;
+  sessionId?: string;
+  isProcessing: boolean;
+  lastActivity: number;
+  lifecycleState: AgentLifecycleState;
+}
+
+/**
+ * Manages an individual agent's lifecycle and Claude API interactions.
+ */
+export class AgentLifecycleImpl implements IAgentLifecycle {
   private config: AgentConfig;
-  private state: AgentState;
-  private messageQueue: MessageQueue;
+  private agentState: AgentState;
+  private messageStore: MessageStoreImpl;
+  private messageRouter: MessageRouterImpl;
+  private channelRegistry: ChannelRegistry;
   private workingDirectory: string;
   private signOffCallback: SignOffCallback | null = null;
 
   constructor(
     config: AgentConfig,
-    messageQueue: MessageQueue,
+    messageStore: MessageStoreImpl,
+    messageRouter: MessageRouterImpl,
+    channelRegistry: ChannelRegistry,
     workingDirectory: string
   ) {
     this.config = config;
-    this.messageQueue = messageQueue;
+    this.messageStore = messageStore;
+    this.messageRouter = messageRouter;
+    this.channelRegistry = channelRegistry;
     this.workingDirectory = workingDirectory;
-    this.state = {
+    this.agentState = {
       id: config.id,
       name: config.name,
-      pendingMessages: [],
       isProcessing: false,
       lastActivity: Date.now(),
+      lifecycleState: "created",
     };
 
-    messageQueue.createQueue(config.id);
+    messageStore.createQueue(config.id);
   }
 
-  get id(): string {
+  get id(): AgentId {
     return this.config.id;
   }
 
+  get state(): AgentLifecycleState {
+    return this.agentState.lifecycleState;
+  }
+
   get isProcessing(): boolean {
-    return this.state.isProcessing;
+    return this.agentState.isProcessing;
   }
 
   setSignOffCallback(callback: SignOffCallback): void {
     this.signOffCallback = callback;
   }
 
-  resetContext(): void {
-    this.state.sessionId = undefined;
+  async start(): Promise<void> {
+    this.agentState.lifecycleState = "starting";
+    // Initialization complete
+    this.agentState.lifecycleState = "ready";
+  }
+
+  async stop(): Promise<void> {
+    this.agentState.lifecycleState = "stopped";
+  }
+
+  async reset(): Promise<void> {
+    this.agentState.sessionId = undefined;
+    this.agentState.lifecycleState = "ready";
+  }
+
+  isReady(): boolean {
+    return this.agentState.lifecycleState === "ready";
   }
 
   hasIncomingMessages(): boolean {
-    return this.messageQueue.hasMessages(this.config.id);
+    return this.messageStore.hasPending(this.config.id);
   }
 
   private createMessagingServer() {
     const agentId = this.config.id;
-    const queue = this.messageQueue;
+    const router = this.messageRouter;
+    const store = this.messageStore;
+    const channelReg = this.channelRegistry;
 
     const sendMessageTool = tool(
       "send_message",
@@ -62,7 +110,7 @@ export class AgentSession {
         reply_to: z.string().optional().describe("Message ID if replying"),
       },
       async ({ to, content, reply_to }) => {
-        const msg = queue.send(agentId, to, content, reply_to);
+        const msg = router.send(agentId, to, content, reply_to);
         return {
           content: [
             {
@@ -81,7 +129,7 @@ export class AgentSession {
         content: z.string().describe("Message content to broadcast"),
       },
       async ({ content }) => {
-        const msgs = queue.broadcast(agentId, content);
+        const msgs = router.broadcast(agentId, content);
         return {
           content: [
             {
@@ -98,7 +146,7 @@ export class AgentSession {
       "List all agents in the network",
       {},
       async () => {
-        const agents = queue.getAgentIds().filter((id) => id !== agentId);
+        const agents = store.getAgentIds().filter((id) => id !== agentId);
         return {
           content: [
             {
@@ -116,10 +164,12 @@ export class AgentSession {
       {
         channel: z
           .string()
-          .describe("Channel name (with or without # prefix, e.g., 'planning' or '#planning')"),
+          .describe(
+            "Channel name (with or without # prefix, e.g., 'planning' or '#planning')"
+          ),
       },
       async ({ channel }) => {
-        const subscribed = queue.subscribe(agentId, channel);
+        const subscribed = channelReg.subscribe(agentId, channel);
         const channelId = channel.startsWith("#") ? channel : `#${channel}`;
         return {
           content: [
@@ -143,7 +193,7 @@ export class AgentSession {
           .describe("Channel name (with or without # prefix)"),
       },
       async ({ channel }) => {
-        const unsubscribed = queue.unsubscribe(agentId, channel);
+        const unsubscribed = channelReg.unsubscribe(agentId, channel);
         const channelId = channel.startsWith("#") ? channel : `#${channel}`;
         return {
           content: [
@@ -169,7 +219,7 @@ export class AgentSession {
         reply_to: z.string().optional().describe("Message ID if replying"),
       },
       async ({ channel, content, reply_to }) => {
-        const msg = queue.publishToChannel(agentId, channel, content, reply_to);
+        const msg = router.publishToChannel(agentId, channel, content, reply_to);
         const channelId = channel.startsWith("#") ? channel : `#${channel}`;
         return {
           content: [
@@ -187,8 +237,8 @@ export class AgentSession {
       "List all active channels and your subscriptions",
       {},
       async () => {
-        const channels = queue.getChannels();
-        const mySubscriptions = queue.getAgentSubscriptions(agentId);
+        const channels = channelReg.getChannels();
+        const mySubscriptions = channelReg.getSubscriptions(agentId);
 
         if (channels.length === 0) {
           return {
@@ -203,7 +253,9 @@ export class AgentSession {
 
         const channelList = channels
           .map((ch) => {
-            const subscribed = mySubscriptions.includes(ch.name) ? " (subscribed)" : "";
+            const subscribed = mySubscriptions.includes(ch.name)
+              ? " (subscribed)"
+              : "";
             return `${ch.name}: ${ch.subscriberCount} subscribers${subscribed}`;
           })
           .join("\n");
@@ -270,15 +322,16 @@ export class AgentSession {
   }
 
   async processMessages(initialPrompt?: string): Promise<string> {
-    if (this.state.isProcessing) {
+    if (this.agentState.isProcessing) {
       return "Agent is busy processing";
     }
 
-    this.state.isProcessing = true;
-    this.state.lastActivity = Date.now();
+    this.agentState.isProcessing = true;
+    this.agentState.lifecycleState = "processing";
+    this.agentState.lastActivity = Date.now();
 
     try {
-      const incomingMessages = this.messageQueue.getMessages(this.config.id);
+      const incomingMessages = this.messageStore.dequeue(this.config.id);
       const messagesText = this.formatIncomingMessages(incomingMessages);
 
       let prompt: string;
@@ -287,6 +340,7 @@ export class AgentSession {
       } else if (incomingMessages.length > 0) {
         prompt = `You have received messages from other agents:${messagesText}\n\nRespond appropriately using the send_message tool.`;
       } else {
+        this.agentState.lifecycleState = "ready";
         return "No messages to process";
       }
 
@@ -345,8 +399,8 @@ Be collaborative and helpful to other agents.`;
         permissionMode: "bypassPermissions" as const,
       };
 
-      if (this.state.sessionId) {
-        options.resume = this.state.sessionId;
+      if (this.agentState.sessionId) {
+        options.resume = this.agentState.sessionId;
       }
 
       const response = query({
@@ -366,15 +420,17 @@ Be collaborative and helpful to other agents.`;
       }
 
       if (sessionId) {
-        this.state.sessionId = sessionId;
+        this.agentState.sessionId = sessionId;
       }
 
+      this.agentState.lifecycleState = "ready";
       return responseText || "Processed";
     } catch (error) {
       console.error(`[${this.config.id}] Error:`, error);
+      this.agentState.lifecycleState = "ready";
       throw error;
     } finally {
-      this.state.isProcessing = false;
+      this.agentState.isProcessing = false;
     }
   }
 }

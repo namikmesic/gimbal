@@ -1,4 +1,4 @@
-import { Gimbal } from "./proxy.js";
+import { OrchestratorImpl } from "./orchestrator.js";
 import { ProxyConfig } from "./types.js";
 
 export interface GimbalOptions {
@@ -112,33 +112,33 @@ Do not speculate. Only answer based on what you've read.`,
     ],
   };
 
-  const proxy = new Gimbal(config);
+  const orchestrator = new OrchestratorImpl(config);
 
   console.log("\n=== Self-Improving Agent Demo ===\n");
-  console.log("Agents:", proxy.getAgentIds().join(", "));
+  console.log("Agents:", orchestrator.getAgentIds().join(", "));
   console.log("Working directory:", config.workingDirectory);
 
   // Handle graceful shutdown
   process.on("SIGINT", () => {
     console.log("\nShutting down...");
-    proxy.stop();
+    orchestrator.stop();
     process.exit(0);
   });
 
   // Subscribe all agents to #planning channel for discussions
-  for (const agentId of proxy.getAgentIds()) {
-    proxy.subscribeAgentToChannel(agentId, "#planning");
-    proxy.subscribeAgentToChannel(agentId, "#implementation");
+  for (const agentId of orchestrator.getAgentIds()) {
+    orchestrator.subscribeAgentToChannel(agentId, "#planning");
+    orchestrator.subscribeAgentToChannel(agentId, "#implementation");
   }
   console.log("All agents subscribed to #planning and #implementation channels\n");
 
   // Subscribe knowledge agent to #knowledge channel
-  proxy.subscribeAgentToChannel("knowledge", "#knowledge");
+  orchestrator.subscribeAgentToChannel("knowledge", "#knowledge");
   console.log("Knowledge agent subscribed to #knowledge channel\n");
 
   // Initialize knowledge agent
   console.log("\n[Demo] Initializing knowledge agent...\n");
-  const knowledgeResponse = await proxy.sendInitialPrompt(
+  const knowledgeResponse = await orchestrator.sendInitialPrompt(
     "knowledge",
     `You are the codebase knowledge coordinator. Your job is to become an expert on this codebase.
 
@@ -170,7 +170,7 @@ Begin initialization now.`
   console.log("\n[Demo] Starting self-improvement session with Architect...\n");
 
   try {
-    const response = await proxy.sendInitialPrompt(
+    const response = await orchestrator.sendInitialPrompt(
       "architect",
       `Welcome! You're working on the gimbal codebase in ${config.workingDirectory}.
 
@@ -198,7 +198,7 @@ Publish your proposal to #planning for team discussion.`
 
     // Run the message loop
     console.log("[Demo] Starting message loop...\n");
-    await proxy.runLoop();
+    await orchestrator.runLoop();
   } catch (error) {
     console.error("Error:", error);
     process.exit(1);
