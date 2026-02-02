@@ -24,7 +24,7 @@ async function getInitialDirection(): Promise<string> {
 
 async function main() {
   const config: ProxyConfig = {
-    workingDirectory: "/Users/namik/git/agent-proxy-experiment", // worktree for safe experimentation
+    workingDirectory: process.env.AGENT_PROXY_WORKDIR || process.cwd(),
     agents: [
       {
         id: "architect",
