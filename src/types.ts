@@ -283,7 +283,9 @@ export type ArtifactType =
   | "implementation" // Code changes
   | "test-results" // Evidence tests passed
   | "changelog-entry" // Change documentation
-  | "retrospective"; // Process learnings
+  | "retrospective" // Process learnings
+  | "knowledge-response" // Codebase insights from knowledge agent
+  | "research-report"; // External research findings from research agent
 
 /**
  * An artifact is a work product from a workflow phase.
