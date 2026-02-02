@@ -81,11 +81,15 @@ stateDiagram-v2
     starting --> ready: initialized
     ready --> processing: processMessages()
     processing --> ready: done processing
+    ready --> paused: system pause
+    processing --> paused: system pause
+    paused --> ready: system resume
 
     created --> stopped: stop()
     starting --> stopped: stop()
     ready --> stopped: stop()
     processing --> stopped: stop()
+    paused --> stopped: stop()
 ```
 
 | State | Meaning |
@@ -94,6 +98,7 @@ stateDiagram-v2
 | `starting` | Agent is initializing (loading tools, connecting to Claude) |
 | `ready` | Agent is waiting for messages |
 | `processing` | Agent is actively working on messages |
+| `paused` | Agent is paused (via `/pause` command) |
 | `stopped` | Agent has been shut down |
 
 ### Workflow Phases
@@ -120,7 +125,7 @@ flowchart LR
 
 ### Workflow Completion
 
-When all agents finish their work, they "sign off":
+When all **workflow agents** finish their work, they "sign off". Support agents (like knowledge or research) don't participate in sign-off:
 
 ```mermaid
 flowchart TD
@@ -154,6 +159,68 @@ Send to all agents:
 broadcast("System maintenance in 5 minutes")
 ```
 
+### Messaging Tools
+
+Agents have access to these built-in messaging tools:
+
+| Tool | Description |
+|------|-------------|
+| `send_message(to, content)` | Send a direct message to another agent |
+| `broadcast(content)` | Send to all agents except yourself |
+| `subscribe(channel)` | Join a channel (creates it if needed) |
+| `unsubscribe(channel)` | Leave a channel |
+| `publish(channel, content)` | Broadcast to all channel subscribers |
+| `list_agents()` | List all available agents |
+| `list_channels()` | List active channels and your subscriptions |
+| `sign_off()` | Signal completion (workflow agents only) |
+
+### Channels
+
+The default workflow uses these channels:
+
+| Channel | Purpose | Subscribers |
+|---------|---------|-------------|
+| `#planning` | Proposals, reviews, coordination | architect, developer, staff |
+| `#implementation` | Code changes, test results | developer, staff |
+| `#knowledge` | Codebase questions | knowledge agent |
+| `#research` | External research requests | research agent |
+| `#errors` | Error visibility | staff, research |
+
+Channels are created automatically when an agent subscribes and removed when empty.
+
+## Agent Types
+
+There are two types of agents:
+
+### Workflow Agents
+- Participate in workflow phases (proposal → implementation → documentation)
+- Can call `sign_off()` to signal completion
+- System waits for ALL workflow agents to sign off before prompting human
+- Examples: architect, developer, staff
+
+### Support Agents
+- Always available helpers that don't block workflow
+- Cannot sign off (don't participate in completion tracking)
+- Typically listen on dedicated channels for questions
+- Examples: knowledge (codebase docs), research (external info)
+
+```mermaid
+flowchart LR
+    subgraph Workflow["Workflow Agents (sign off required)"]
+        A[Architect]
+        D[Developer]
+        S[Staff]
+    end
+
+    subgraph Support["Support Agents (always available)"]
+        K[Knowledge]
+        R[Research]
+    end
+
+    Workflow -->|questions| Support
+    Support -->|answers| Workflow
+```
+
 ## Available Commands
 
 As a human operator, you can control the system with slash commands:
@@ -168,6 +235,8 @@ As a human operator, you can control the system with slash commands:
 | `/quit` | Exit the system |
 
 Any other text you type becomes "direction" broadcast to all agents.
+
+**Input Safety**: Short ambiguous inputs (like "a", "y", "n", "ok") require confirmation before broadcasting, preventing accidental commands from being sent as direction.
 
 ## Extension Points
 
@@ -209,19 +278,30 @@ In `types.ts`, extend the `WORKFLOW_PHASES` constant:
 
 ### 3. Add New Slash Commands
 
-In `human-director.ts`, add to `handleCommand()`:
+In `human-director.ts`, add a callback property and setter:
 
 ```typescript
-case "agents":
-  this.listAgentsCallback?.();
+private myCommandCallback: (() => void) | null = null;
+
+onMyCommand(callback: () => void): void {
+  this.myCommandCallback = callback;
+}
+```
+
+Then add the case in `handleCommand()`:
+
+```typescript
+case "mycommand":
+  this.myCommandCallback?.();
   break;
 ```
 
-Then wire it up in `orchestrator.ts`:
+Finally, wire it up in `orchestrator.ts` constructor:
 
 ```typescript
-this.humanDirector.onListAgents(() => {
-  this.printAgentDetails();
+this.humanDirector.onMyCommand(() => {
+  // Your command logic here
+  console.log("My command executed!");
 });
 ```
 
@@ -248,18 +328,26 @@ Agents can use external tools via MCP servers. In agent config:
 ```typescript
 {
   id: "researcher",
-  // ... other config
-  mcpServers: [
-    {
-      name: "web-search",
+  name: "Researcher",
+  systemPrompt: "You research topics using web search...",
+  agentType: "support",
+  mcpServers: {
+    "web-search": {
       command: "npx",
       args: ["-y", "@anthropic/mcp-server-web-search"],
-    }
-  ]
+      env: {  // optional environment variables
+        API_KEY: process.env.SEARCH_API_KEY || "",
+      },
+    },
+  },
 }
 ```
 
 The agent can then use tools like `mcp__web-search__search`.
+
+**Built-in MCP integrations:**
+- **Context7** (`@upstash/context7-mcp`) - Library documentation lookup
+- **Perplexity** (`@perplexity-ai/mcp-server`) - Real-time web search
 
 ## Writing Custom Workflows
 
@@ -340,10 +428,15 @@ checkpoint.reject(checkpointId, "Missing edge case handling");
 | `orchestrator.ts` | Main control loop, coordinates everything |
 | `agent-lifecycle.ts` | Individual agent behavior, tool definitions |
 | `human-director.ts` | Terminal input handling, slash commands |
+| `input-parser.ts` | Parses commands vs directions, detects suspicious input |
 | `message-router.ts` | Routes messages between agents |
+| `message-store.ts` | Per-agent message queues |
 | `channel-registry.ts` | Manages pub/sub channels |
+| `sign-off-tracker.ts` | Tracks workflow agent sign-offs |
 | `types.ts` | All type definitions, workflow phases |
 | `checkpoint.ts` | Quality gates for approvals |
+| `artifact.ts` | Tracks work products (proposals, implementations) |
+| `cli.ts` | Command-line interface and argument parsing |
 
 ## Debugging Tips
 
@@ -364,9 +457,10 @@ checkpoint.reject(checkpointId, "Missing edge case handling");
 ## Summary
 
 - **Event Loop**: Agents sleep until messages arrive, then wake to process
-- **Two State Machines**: Agent lifecycle (created→ready→processing) and workflow phases
+- **Two State Machines**: Agent lifecycle (created→ready→processing→paused) and workflow phases
+- **Agent Types**: Workflow agents (sign off required) vs support agents (always available)
 - **Communication**: Direct messages, channels (pub/sub), or broadcast
-- **Extension**: Add agents, phases, commands, or external tools
+- **Extension**: Add agents, phases, commands, MCP servers, or messaging tools
 - **Control**: Use slash commands (`/status`, `/pause`, `/resume`, `/fresh`)
 
 The system is designed to be extended. Start by understanding the existing workflow, then customize agents and phases for your needs.
