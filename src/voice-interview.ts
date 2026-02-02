@@ -103,6 +103,11 @@ export async function startVoiceInterview(options: VoiceInterviewOptions): Promi
   const audioInterface = new NodeAudioInterface();
   const recorder = options.recordingPath ? new InterviewRecorder(options.recordingPath) : null;
 
+  // Handle audio interface errors gracefully
+  audioInterface.on("error", () => {
+    process.exit(1);
+  });
+
   // Default voice: Brian (friendly, conversational)
   const voiceId = options.voiceId || "nPczCjzI2devNBz1zQrb";
 
