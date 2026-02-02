@@ -13,6 +13,8 @@ interface ParsedArgs {
   selfImprove?: boolean;
   storeTranscripts?: boolean;
   voiceSummary?: string;
+  voiceInterview?: string;
+  recordInterview?: string;
   voiceId?: string;
   outputFile?: string;
 }
@@ -61,6 +63,18 @@ function parseArgs(args: string[]): ParsedArgs {
         process.exit(1);
       }
       parsed.outputFile = args[++i];
+    } else if (arg === "--voice-interview") {
+      if (i + 1 >= args.length) {
+        console.error("Error: --voice-interview requires a file path argument");
+        process.exit(1);
+      }
+      parsed.voiceInterview = args[++i];
+    } else if (arg === "--record") {
+      if (i + 1 >= args.length) {
+        console.error("Error: --record requires a file path argument");
+        process.exit(1);
+      }
+      parsed.recordInterview = args[++i];
     } else {
       console.error(`Error: Unknown option: ${arg}\n`);
       showHelp();
@@ -80,14 +94,16 @@ Options:
   --direction <text>   Initial direction for agents (skips interactive prompt)
   --self-improve       Run in self-improvement mode (gimbal improves itself)
   --store-transcripts  Save conversation transcript to TRANSCRIPT.md
-  --voice-summary <file>  Generate voice summary from TRANSCRIPT.md
-  --voice-id <id>         ElevenLabs voice ID (default: Adam)
-  --output <file>         Output audio file (default: summary.mp3)
+  --voice-summary <file>    Generate voice summary from TRANSCRIPT.md
+  --voice-interview <file>  Start interactive voice interview about session
+  --record <file>           Record interview to file (use with --voice-interview)
+  --voice-id <id>           ElevenLabs voice ID (default: Brian)
+  --output <file>           Output audio file (default: summary.mp3)
   --help, -h           Show this help message
   --version, -v        Show version number
 
 Environment Variables:
-  ELEVENLABS_API_KEY   Required for --voice-summary
+  ELEVENLABS_API_KEY   Required for --voice-summary and --voice-interview
 
 Examples:
   gimbal                                    # Interactive mode
@@ -96,6 +112,8 @@ Examples:
   gimbal --dir ./project --direction "..."  # Combined options
   gimbal --self-improve                     # Self-improvement mode
   gimbal --voice-summary ./TRANSCRIPT.md    # Generate voice summary
+  gimbal --voice-interview ./TRANSCRIPT.md  # Interactive voice interview
+  gimbal --voice-interview ./TRANSCRIPT.md --record ./out.mp3  # With recording
 `);
 }
 
@@ -204,6 +222,22 @@ async function main() {
       });
       console.log(`Voice summary saved to: ${outputPath}`);
       process.exit(0);
+    } catch (error) {
+      console.error(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  }
+
+  // Handle voice interview command
+  if (args.voiceInterview) {
+    const { startVoiceInterview } = await import("./voice-interview.js");
+    try {
+      await startVoiceInterview({
+        transcriptPath: args.voiceInterview,
+        recordingPath: args.recordInterview,
+        voiceId: args.voiceId,
+      });
+      // startVoiceInterview handles its own exit
     } catch (error) {
       console.error(`Error: ${(error as Error).message}`);
       process.exit(1);
