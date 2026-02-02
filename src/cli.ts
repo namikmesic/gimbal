@@ -17,6 +17,10 @@ interface ParsedArgs {
   recordInterview?: string;
   voiceId?: string;
   outputFile?: string;
+  // SME mode options
+  smeMode?: boolean;
+  repos?: string[];
+  noArchitect?: boolean;
 }
 
 function parseArgs(args: string[]): ParsedArgs {
@@ -75,6 +79,20 @@ function parseArgs(args: string[]): ParsedArgs {
         process.exit(1);
       }
       parsed.recordInterview = args[++i];
+    } else if (arg === "--sme-mode") {
+      parsed.smeMode = true;
+    } else if (arg === "--repos") {
+      // Collect all following arguments until we hit another flag
+      parsed.repos = [];
+      while (i + 1 < args.length && !args[i + 1].startsWith("--")) {
+        parsed.repos.push(args[++i]);
+      }
+      if (parsed.repos.length === 0) {
+        console.error("Error: --repos requires at least one path argument");
+        process.exit(1);
+      }
+    } else if (arg === "--no-architect") {
+      parsed.noArchitect = true;
     } else {
       console.error(`Error: Unknown option: ${arg}\n`);
       showHelp();
@@ -102,6 +120,11 @@ Options:
   --help, -h           Show this help message
   --version, -v        Show version number
 
+SME Mode (Subject Matter Expert):
+  --sme-mode           Enable SME mode for multi-repository knowledge
+  --repos <paths...>   Repository paths for SME mode (required with --sme-mode)
+  --no-architect       Exclude Staff Architect agent from SME mode
+
 Environment Variables:
   ELEVENLABS_API_KEY   Required for --voice-summary and --voice-interview
 
@@ -114,6 +137,11 @@ Examples:
   gimbal --voice-summary ./TRANSCRIPT.md    # Generate voice summary
   gimbal --voice-interview ./TRANSCRIPT.md  # Interactive voice interview
   gimbal --voice-interview ./TRANSCRIPT.md --record ./out.mp3  # With recording
+
+SME Mode Examples:
+  gimbal --sme-mode --repos ./backend ./frontend ./ml-service
+  gimbal --sme-mode --repos ./api --no-architect
+  gimbal --sme-mode --repos ./project1 ./project2 --store-transcripts
 `);
 }
 
@@ -238,6 +266,33 @@ async function main() {
         voiceId: args.voiceId,
       });
       // startVoiceInterview handles its own exit
+    } catch (error) {
+      console.error(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
+  }
+
+  // Handle SME mode
+  if (args.smeMode) {
+    if (!args.repos || args.repos.length === 0) {
+      console.error("Error: --sme-mode requires --repos with at least one repository path");
+      process.exit(1);
+    }
+
+    // Validate repository paths
+    for (const repoPath of args.repos) {
+      const resolvedPath = path.resolve(repoPath);
+      validateDirectory(resolvedPath);
+    }
+
+    const { createSMEMode } = await import("./sme-mode.js");
+    try {
+      await createSMEMode({
+        repositories: args.repos.map((p) => path.resolve(p)),
+        includeArchitect: !args.noArchitect,
+        storeTranscripts: args.storeTranscripts,
+      });
+      process.exit(0);
     } catch (error) {
       console.error(`Error: ${(error as Error).message}`);
       process.exit(1);

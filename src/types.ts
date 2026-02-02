@@ -58,6 +58,28 @@ export interface AgentState {
   lastActivity: number;
 }
 
+// ============================================================================
+// SME Mode Interfaces
+// ============================================================================
+
+/**
+ * Configuration for a repository in SME mode.
+ */
+export interface SMERepoConfig {
+  path: string; // Absolute path to repository
+  name: string; // Friendly name (e.g., "backend", "frontend")
+}
+
+/**
+ * Configuration for SME (Subject Matter Expert) mode.
+ */
+export interface SMEModeConfig {
+  repositories: SMERepoConfig[];
+  coordinatorModel?: "sonnet" | "opus" | "haiku";
+  smeModel?: "sonnet" | "opus" | "haiku";
+  includeArchitect?: boolean;
+}
+
 export interface ProxyConfig {
   agents: AgentConfig[];
   tickIntervalMs?: number;
