@@ -6,26 +6,25 @@ This guide explains how Gimbal's control loop and state machine work, and how to
 
 Gimbal is a multi-agent orchestration system where AI agents collaborate to complete software engineering tasks. Think of it as a virtual team where each agent has a specific role (architect, developer, staff engineer) and they communicate through messages.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      Human Director                          │
-│                    (you, via terminal)                       │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ direction
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                       Orchestrator                           │
-│              (coordinates everything)                        │
-└──────┬──────────────────┬───────────────────┬───────────────┘
-       │                  │                   │
-       ▼                  ▼                   ▼
-   ┌────────┐        ┌────────┐         ┌────────┐
-   │Architect│◄─────►│Developer│◄───────►│ Staff  │
-   └────────┘        └────────┘         └────────┘
-         │                │                  │
-         └────────────────┴──────────────────┘
-                    Message Queue
-                   (pub/sub channels)
+```mermaid
+flowchart TB
+    subgraph Human["Human Director (you, via terminal)"]
+    end
+
+    subgraph Orch["Orchestrator (coordinates everything)"]
+    end
+
+    Human -->|direction| Orch
+
+    subgraph MQ["Message Queue (pub/sub channels)"]
+        Architect <-->|messages| Developer
+        Developer <-->|messages| Staff
+        Architect <-->|messages| Staff
+    end
+
+    Orch --> Architect
+    Orch --> Developer
+    Orch --> Staff
 ```
 
 ## The Event Loop
@@ -34,12 +33,17 @@ Gimbal is a multi-agent orchestration system where AI agents collaborate to comp
 
 The system runs an **event-driven loop** - agents don't constantly check for work. Instead, they sleep until a message arrives, then wake up to process it.
 
-```
-Agent Loop (runs continuously for each agent):
-  1. Am I paused? → Wait until resumed
-  2. Do I have messages? → If no, sleep until one arrives
-  3. Process messages → Use tools, send responses
-  4. Go back to step 1
+```mermaid
+flowchart TD
+    A[Start] --> B{Am I paused?}
+    B -->|Yes| C[Wait until resumed]
+    C --> B
+    B -->|No| D{Do I have messages?}
+    D -->|No| E[Sleep until message arrives]
+    E --> D
+    D -->|Yes| F[Process messages]
+    F --> G[Use tools, send responses]
+    G --> B
 ```
 
 **Why this matters**: The system is efficient. Agents don't waste CPU cycles polling. They wake instantly when there's work to do.
@@ -48,18 +52,18 @@ Agent Loop (runs continuously for each agent):
 
 When Agent A sends a message to Agent B:
 
-```
-Agent A calls send_message("agent-b", "Please review this")
-    │
-    ▼
-Message Router receives the message
-    │
-    ├─► Stores message in Agent B's queue
-    │
-    └─► Triggers Agent B's "wakeup" callback
-            │
-            ▼
-        Agent B wakes up and processes the message
+```mermaid
+sequenceDiagram
+    participant A as Agent A
+    participant R as Message Router
+    participant Q as Agent B's Queue
+    participant B as Agent B
+
+    A->>R: send_message("agent-b", "Please review this")
+    R->>Q: Store message
+    R->>B: Trigger wakeup callback
+    B->>Q: Read messages
+    B->>B: Process message
 ```
 
 ## State Machines
@@ -70,17 +74,18 @@ There are two state machines: one for individual agents, one for the overall wor
 
 Each agent has a lifecycle state:
 
-```
-┌─────────┐     ┌──────────┐     ┌───────┐
-│ created │────►│ starting │────►│ ready │◄──────┐
-└─────────┘     └──────────┘     └───┬───┘       │
-                                     │           │
-                                     ▼           │
-                               ┌────────────┐    │
-                               │ processing │────┘
-                               └────────────┘
+```mermaid
+stateDiagram-v2
+    [*] --> created
+    created --> starting: start()
+    starting --> ready: initialized
+    ready --> processing: processMessages()
+    processing --> ready: done processing
 
-Any state ───► stopped (when system shuts down)
+    created --> stopped: stop()
+    starting --> stopped: stop()
+    ready --> stopped: stop()
+    processing --> stopped: stop()
 ```
 
 | State | Meaning |
@@ -95,10 +100,13 @@ Any state ───► stopped (when system shuts down)
 
 The workflow progresses through phases. Each phase has an owner and produces specific artifacts:
 
-```
-proposal ──► proposal-review ──► test-planning ──► test-review ──► implementation ──► documentation
-    │              │                   │               │                │                  │
-Architect       Staff             Developer         Staff          Developer            Staff
+```mermaid
+flowchart LR
+    P[proposal<br/><i>Architect</i>] --> PR[proposal-review<br/><i>Staff</i>]
+    PR --> TP[test-planning<br/><i>Developer</i>]
+    TP --> TR[test-review<br/><i>Staff</i>]
+    TR --> I[implementation<br/><i>Developer</i>]
+    I --> D[documentation<br/><i>Staff</i>]
 ```
 
 | Phase | Owner | What Happens |
@@ -114,19 +122,13 @@ Architect       Staff             Developer         Staff          Developer    
 
 When all agents finish their work, they "sign off":
 
-```
-All agents sign off
-    │
-    ▼
-System pauses
-    │
-    ▼
-Human Director prompts you:
-  "Enter direction, or /fresh for fresh start"
-    │
-    ├─► New direction → Agents resume with new task
-    │
-    └─► /fresh → Reset all agent contexts, start clean
+```mermaid
+flowchart TD
+    A[All agents sign off] --> B[System pauses]
+    B --> C[Human Director prompts:<br/>'Enter direction, or /fresh for fresh start']
+    C --> D{User input}
+    D -->|New direction| E[Agents resume with new task]
+    D -->|/fresh| F[Reset all agent contexts, start clean]
 ```
 
 ## Communication Patterns
