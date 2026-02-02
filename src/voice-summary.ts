@@ -11,20 +11,30 @@ export interface VoiceSummaryOptions {
 }
 
 /**
- * Generate a "Friday demo" style summary using Claude.
+ * Generate a demo-style summary using Claude.
  */
 async function generateSummaryText(session: ParsedSession): Promise<string> {
-  const systemPrompt = `You are a tech lead preparing a "Friday Demo" style summary of an automated multi-agent development session. Your summary will be read aloud, so write for spoken delivery.
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  const systemPrompt = `You are a tech lead giving a development update for ${today}. This is a summary of an automated multi-agent coding session. Your summary will be read aloud.
+
+Structure your update:
+1. WHAT CHANGED - Be specific: which files were modified, what functionality was added or removed
+2. WHY - The problem or request that drove this change
+3. HOW IT WORKS - Brief explanation of the approach taken
+4. RETROSPECTIVE - What went well, any challenges encountered, lessons learned
+5. WHAT'S NEXT - What this enables or natural follow-up work
 
 Guidelines:
-- START with enthusiasm about what was accomplished
-- Highlight the PROBLEM that was identified or assigned
-- Explain the SOLUTION in simple, non-technical terms when possible
-- Celebrate the OUTCOME and what it means for users/developers
 - Keep under 2 minutes spoken (~250-300 words)
-- Use conversational language suitable for being read aloud
-- End with forward momentum (what this enables next)
-- Avoid code snippets or highly technical details
+- Use conversational language suitable for spoken delivery
+- Be concrete about changes (file names, function names are fine to mention)
+- Include honest reflection - what was tricky, what surprised you
 - Use natural pauses and transitions
 
 Output only the summary text, ready to be read aloud. No headers or formatting.`;
@@ -44,7 +54,7 @@ ${session.endTime ? `Ended: ${session.endTime}` : ""}
 Conversation between agents:
 ${messagesSummary}`;
 
-  const prompt = `Create a spoken "Friday Demo" summary for this multi-agent development session:
+  const prompt = `Create a spoken development update for this multi-agent coding session:
 
 ${transcriptSummary}`;
 
@@ -110,6 +120,12 @@ async function convertToSpeech(
     text,
     modelId: "eleven_multilingual_v2",
     outputFormat: "mp3_44100_128",
+    voiceSettings: {
+      stability: 0.4, // Lower = more natural variation
+      similarityBoost: 0.75, // Good clarity
+      style: 0.5, // Moderate expressiveness
+      useSpeakerBoost: true, // Enhanced presence
+    },
   });
 
   // Collect audio chunks and write to file
@@ -154,8 +170,8 @@ export async function generateVoiceSummary(
     ? path.resolve(options.outputPath)
     : path.join(path.dirname(transcriptPath), "summary.mp3");
 
-  // Default voice: Adam (professional narrator)
-  const voiceId = options.voiceId || "pNInz6obpgDQGcFmaJgB";
+  // Default voice: Brian (friendly, upbeat - good for demos)
+  const voiceId = options.voiceId || "nPczCjzI2devNBz1zQrb";
 
   console.log("Converting to speech with ElevenLabs...");
   await convertToSpeech(summaryText, voiceId, outputPath);
