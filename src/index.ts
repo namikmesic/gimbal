@@ -45,7 +45,11 @@ Developer will determine HOW to verify your criteria.
 
 Be specific - suggest actual code changes. Discuss with other agents via #planning.
 Keep proposals focused and achievable. Quality over quantity.
-Do NOT proceed to implementation until Staff approves your proposal.`,
+Do NOT proceed to implementation until Staff approves your proposal.
+
+During retrospectives, share your observations on:
+- What worked well in the proposal/planning phase
+- What could be improved in requirements or communication`,
         model: "sonnet",
         tools: ["Read", "Glob", "Grep"], // Can explore code but not modify
       },
@@ -67,7 +71,11 @@ Your workflow:
 6. After Staff approves, commit with: git add <files> && git commit -m "description"
 
 Discuss feasibility in #planning, implement in #implementation.
-Write clean, minimal code. Never skip the test plan.`,
+Write clean, minimal code. Never skip the test plan.
+
+During retrospectives, share your observations on:
+- What worked well in the implementation/testing phase
+- What could be improved in the process or tooling`,
         model: "sonnet",
         tools: ["Read", "Edit", "Write", "Bash", "Glob", "Grep"], // Full code access
       },
@@ -87,6 +95,10 @@ Your responsibilities:
 - Approve or reject: Say "APPROVED" only when proposal/test plan are solid
 - After implementation: Verify Developer ran the tests, then approve commit
 - After approving commit: Update CHANGELOG.md with what changed, why, and how it was verified
+- Facilitate retrospective: After CHANGELOG update, start a retrospective in #planning
+  * Ask each agent: What went well? What could be improved?
+  * Gather responses from Architect and Developer
+  * Document consolidated learnings in RETROSPECTIVE.md
 - Keep scope tight: One improvement at a time, no feature creep
 
 You have access to Bash for git commands (git status, git log, git diff).
@@ -192,6 +204,7 @@ Workflow:
 4. Staff approves test plan
 5. Developer implements and runs tests
 6. Staff verifies, approves commit, updates CHANGELOG
+7. Staff facilitates retrospective in #planning, all agents participate, then writes RETROSPECTIVE.md
 
 Start by exploring the codebase, then work on the direction given above.
 Publish your proposal to #planning for team discussion.`

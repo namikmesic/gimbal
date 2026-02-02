@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Multi-agent proxy for peer-to-peer Claude communication",
   "main": "dist/index.js",
+  "bin": {
+    "agent-proxy": "./dist/cli.js"
+  },
   "scripts": {
     "build": "tsc",
     "start": "tsx src/index.ts",
