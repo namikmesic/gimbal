@@ -1,30 +1,14 @@
-import * as readline from "readline";
 import { AgentProxy } from "./proxy.js";
 import { ProxyConfig } from "./types.js";
 
-async function getInitialDirection(): Promise<string> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  return new Promise((resolve) => {
-    rl.question(
-      "\n[Direction] What should the agents focus on? (Enter for default): ",
-      (input) => {
-        rl.close();
-        resolve(
-          input.trim() ||
-            "Explore the codebase and propose one improvement to make agent communication better."
-        );
-      }
-    );
-  });
+export interface AgentProxyOptions {
+  workingDirectory?: string;
+  initialDirection?: string;
 }
 
-async function main() {
+export async function createAgentProxy(options: AgentProxyOptions = {}): Promise<void> {
   const config: ProxyConfig = {
-    workingDirectory: process.env.AGENT_PROXY_WORKDIR || process.cwd(),
+    workingDirectory: options.workingDirectory || process.env.AGENT_PROXY_WORKDIR || process.cwd(),
     agents: [
       {
         id: "architect",
@@ -179,8 +163,8 @@ Begin initialization now.`
   );
   console.log(`[Knowledge agent initialized]\n`);
 
-  // Get initial direction from user
-  const direction = await getInitialDirection();
+  // Use provided direction or default
+  const direction = options.initialDirection || "Explore the codebase and propose one improvement to make agent communication better.";
 
   // Kick off the self-improvement session
   console.log("\n[Demo] Starting self-improvement session with Architect...\n");
@@ -220,5 +204,3 @@ Publish your proposal to #planning for team discussion.`
     process.exit(1);
   }
 }
-
-main();
