@@ -6,6 +6,75 @@ All notable changes to the gimbal-experiment will be documented in this file.
 
 ### Added - 2026-02-02
 
+#### Interactive Permission Callback System
+- Replaced `bypassPermissions` mode with user-controlled permission gates
+- Agents now prompt for user approval before executing Bash, Edit, Write operations
+- Auto-approves safe operations: messaging tools, Read, Glob, Grep, external MCP tools
+- Permission prompts display tool name, formatted input (truncated at 500 chars), and reason
+- Timeout behavior: denies after AbortSignal (fail-closed for security)
+- Session persistence maintained across permission denials
+- Commit: `f0fed9a`
+
+**Technical Details:**
+- Modified file: `src/agent-lifecycle.ts` (+121 lines)
+- Changed `permissionMode` from `"bypassPermissions"` to `"default"`
+- Added `canUseTool` callback to `query()` options
+- New methods: `truncateInput()`, `formatToolInput()`, `promptForPermission()`
+- Uses Node's built-in `readline` module for blocking prompts
+- No new dependencies
+
+**Auto-Approval Logic:**
+- Messaging tools: `mcp__messaging__*` (8 tools)
+- Read-only tools: `Read`, `Glob`, `Grep`
+- External MCP tools: Pattern match `mcp__*` excluding `mcp__messaging__*`
+
+**Permission Required:**
+- `Bash` (shows command and description)
+- `Edit` (shows file path, old/new strings)
+- `Write` (shows file path, content preview)
+- Other modification tools: `NotebookEdit`, `TodoWrite`, `Task`
+
+**Prompt Format:**
+```
+⚠️  PERMISSION REQUEST
+Tool: Bash
+Command: git status
+Description: Show working tree status
+[A]llow / [D]eny: _
+```
+
+**Verification:**
+- 19/19 auto-approval logic unit tests passed
+- All 6 acceptance criteria verified via code review
+- TypeScript compilation passes
+- Build succeeds on committed code
+- CLI works on committed code
+
+**Problem Solved:**
+The original `bypassPermissions` mode automatically approved all tool calls without user oversight. This was:
+- Security risk: Agents could execute any command without user awareness
+- Incompatible: Some Claude environments don't allow bypassing permissions
+- Non-transparent: Users had no visibility into tool invocations
+
+**Decision Rationale:**
+- Auto-approve scope: Balance security with usability (read-only = safe)
+- Timeout behavior: Fail-closed (deny on timeout) is the secure default
+- Implementation: Inline in `agent-lifecycle.ts` vs. separate file (simpler for ~90 lines)
+- Input truncation: 500 chars prevents overwhelming terminal prompts
+
+**Collaborative Design Process:**
+- Architect researched SDK interface and proposed comprehensive solution
+- Staff challenged auto-approve scope and timeout behavior, gave conditional approval
+- Knowledge provided technical references (line numbers, SDK signatures)
+- Developer wrote 13-test functional test plan + 19 auto-approval unit tests
+- Staff enforced scope (excluded package-lock.json changes)
+- Post-commit verification by Staff confirmed code matches specification
+
+**Key Principle Reinforced:**
+> "Security defaults matter - fail-closed is safer than fail-open"
+
+---
+
 #### Agent Error Recovery and Visibility
 - Added automatic error broadcasting to `#errors` channel when agents fail during message processing
 - Staff Engineer now auto-subscribed to `#errors` channel for immediate visibility of agent failures
