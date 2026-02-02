@@ -13,8 +13,8 @@ export async function createGimbal(options: GimbalOptions = {}): Promise<void> {
       {
         id: "architect",
         name: "The Architect",
-        systemPrompt: `You are the Architect, a system designer for the gimbal project.
-Your job is to propose improvements to make the gimbal system better.
+        systemPrompt: `You are the Architect, a system designer.
+Your job is to explore this codebase, understand its purpose and structure, then propose improvements.
 Review the codebase, understand how it works, then propose ONE improvement.
 
 Your proposal MUST include:
@@ -142,13 +142,15 @@ Do not speculate. Only answer based on what you've read.`,
     "knowledge",
     `You are the codebase knowledge coordinator. Your job is to become an expert on this codebase.
 
-STEP 1: Use Glob to find all TypeScript files in src/
-STEP 2: Read each file using the Read tool
-STEP 3: Build your understanding of:
-- What each file does
-- Key functions and classes
-- How components interact
-- Dependencies between files
+STEP 1: Discover the project type and structure:
+   - Look for package.json (Node/TypeScript), Cargo.toml (Rust), pyproject.toml/setup.py (Python), go.mod (Go), etc.
+   - Identify the main source directories (src/, lib/, app/, etc.)
+STEP 2: Use Glob to find source files matching the detected project type
+STEP 3: Read key files to build your understanding of:
+   - What each file does
+   - Key functions and classes
+   - How components interact
+   - Dependencies between files
 
 STEP 4: Subscribe to #knowledge channel using the subscribe tool
 STEP 5: Wait for questions from other agents on #knowledge
@@ -172,7 +174,12 @@ Begin initialization now.`
   try {
     const response = await orchestrator.sendInitialPrompt(
       "architect",
-      `Welcome! You're working on the gimbal codebase in ${config.workingDirectory}.
+      `Welcome! You're working on a codebase in ${config.workingDirectory}.
+
+First, explore to understand:
+- What is this project? (read README, package manifests)
+- What language/framework does it use?
+- What is the project structure?
 
 [HUMAN DIRECTION]: ${direction}
 

@@ -68,7 +68,7 @@ export type ChannelId = string;
 // ============================================================================
 
 /**
- * The six phases of gimbal workflow.
+ * The six workflow phases.
  * Reading top-to-bottom tells you the entire process.
  */
 export type PhaseId =
@@ -304,7 +304,7 @@ export interface ArtifactRegistry {
 
 /**
  * Static definitions of all workflow phases.
- * Reading this top-to-bottom tells you the entire gimbal process.
+ * Reading this top-to-bottom tells you the entire process.
  */
 export const WORKFLOW_PHASES: Record<PhaseId, WorkflowPhase> = {
   proposal: {
