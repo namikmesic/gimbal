@@ -1,17 +1,26 @@
 import * as readline from "readline";
 import { HumanDirector as IHumanDirector } from "./types.js";
+import { InputParserImpl, ParsedInput } from "./input-parser.js";
 
 type DirectionCallback = (direction: string) => void;
 type FreshStartCallback = () => void;
+type StatusCallback = () => void;
+type PauseCallback = () => void;
+type ResumeCallback = () => void;
 
 /**
  * Handles human input and direction via readline interface.
+ * Supports slash commands and confirms suspicious short inputs.
  */
 export class HumanDirectorImpl implements IHumanDirector {
   private rl: readline.Interface | null = null;
   private directionCallback: DirectionCallback | null = null;
   private freshStartCallback: FreshStartCallback | null = null;
+  private statusCallback: StatusCallback | null = null;
+  private pauseCallback: PauseCallback | null = null;
+  private resumeCallback: ResumeCallback | null = null;
   private running = false;
+  private parser = new InputParserImpl();
 
   startListening(): void {
     if (this.rl) return;
@@ -41,6 +50,18 @@ export class HumanDirectorImpl implements IHumanDirector {
     this.freshStartCallback = callback;
   }
 
+  onStatusRequest(callback: StatusCallback): void {
+    this.statusCallback = callback;
+  }
+
+  onPause(callback: PauseCallback): void {
+    this.pauseCallback = callback;
+  }
+
+  onResume(callback: ResumeCallback): void {
+    this.resumeCallback = callback;
+  }
+
   async prompt(message: string): Promise<string> {
     return new Promise((resolve) => {
       if (!this.rl) {
@@ -62,45 +83,15 @@ export class HumanDirectorImpl implements IHumanDirector {
     if (!this.rl) return;
 
     this.rl.question(
-      "\n[All agents signed off] Enter direction, or type 'fresh' for fresh start: ",
-      (input) => {
-        if (input.toLowerCase() === "q") {
+      "\n[All agents signed off] Enter direction, or /fresh for fresh start: ",
+      async (input) => {
+        if (input.toLowerCase() === "q" || input === "/quit" || input === "/q") {
           this.stopListening();
           process.exit(0);
         }
 
-        const isFreshStart = input.toLowerCase() === "fresh";
-
-        if (isFreshStart) {
-          console.log("[Director] Fresh start - resetting all agent contexts");
-          if (this.freshStartCallback) {
-            this.freshStartCallback();
-          }
-          // Re-prompt for actual direction
-          this.rl?.question(
-            "\n[Direction] Enter guidance for fresh start: ",
-            (direction) => {
-              if (direction.toLowerCase() === "q") {
-                this.stopListening();
-                process.exit(0);
-              }
-              if (direction.trim() && this.directionCallback) {
-                this.directionCallback(direction);
-              }
-              this.startDirectionInputLoop();
-            }
-          );
-        } else if (input.trim()) {
-          // Continue with existing context
-          console.log("[Director] Continuing with existing context");
-          if (this.directionCallback) {
-            this.directionCallback(input);
-          }
-          this.startDirectionInputLoop();
-        } else {
-          // Empty input, re-prompt
-          this.promptForFreshStartChoice();
-        }
+        await this.handleInput(input, true);
+        this.startDirectionInputLoop();
       }
     );
   }
@@ -109,22 +100,96 @@ export class HumanDirectorImpl implements IHumanDirector {
     const promptForDirection = () => {
       if (!this.running || !this.rl) return;
 
-      this.rl.question(
-        "\n[Direction] Enter guidance (or 'q' to quit): ",
-        (input) => {
-          if (input.toLowerCase() === "q") {
-            this.stopListening();
-            void (process.exit(0) as never);
-          } else {
-            if (input.trim() && this.directionCallback) {
-              this.directionCallback(input);
-            }
-            promptForDirection();
-          }
+      this.rl.question("\n[Direction] Enter guidance (or /help): ", async (input) => {
+        if (input.toLowerCase() === "q") {
+          this.stopListening();
+          process.exit(0);
         }
-      );
+
+        await this.handleInput(input);
+        promptForDirection();
+      });
     };
 
     promptForDirection();
+  }
+
+  private async handleInput(input: string, afterSignOff = false): Promise<void> {
+    const parsed = this.parser.parse(input);
+
+    if (parsed.type === "command") {
+      await this.handleCommand(parsed, afterSignOff);
+    } else if (parsed.rawInput.trim()) {
+      // Check for suspicious short inputs
+      if (this.parser.isSuspiciousShortInput(parsed.rawInput)) {
+        const confirm = await this.prompt(
+          `Broadcast "${parsed.rawInput}" as direction? (y/N): `
+        );
+        if (confirm.toLowerCase() !== "y") {
+          console.log("Cancelled. Use /help for available commands.");
+          return;
+        }
+      }
+      this.directionCallback?.(parsed.rawInput);
+    }
+  }
+
+  private async handleCommand(parsed: ParsedInput, afterSignOff = false): Promise<void> {
+    switch (parsed.command) {
+      case "help":
+        this.showHelp();
+        break;
+      case "status":
+        this.statusCallback?.();
+        break;
+      case "pause":
+        this.pauseCallback?.();
+        console.log("[Director] Agents paused");
+        break;
+      case "resume":
+        this.resumeCallback?.();
+        console.log("[Director] Agents resumed");
+        break;
+      case "fresh":
+        if (afterSignOff) {
+          // In sign-off context, no confirmation needed
+          console.log("[Director] Fresh start - resetting all agent contexts");
+          this.freshStartCallback?.();
+        } else {
+          const confirmFresh = await this.prompt("Reset all agent contexts? (y/N): ");
+          if (confirmFresh.toLowerCase() === "y") {
+            console.log("[Director] Fresh start - resetting all agent contexts");
+            this.freshStartCallback?.();
+          } else {
+            console.log("Fresh start cancelled.");
+          }
+        }
+        break;
+      case "quit":
+      case "q":
+        const confirmQuit = await this.prompt("Quit? (y/N): ");
+        if (confirmQuit.toLowerCase() === "y") {
+          this.stopListening();
+          process.exit(0);
+        }
+        break;
+      default:
+        console.log(`Unknown command: /${parsed.command}. Type /help for commands.`);
+    }
+  }
+
+  private showHelp(): void {
+    console.log(`
+Available Commands:
+  /help      Show this help
+  /status    Show workflow state
+  /pause     Pause all agents
+  /resume    Resume agents
+  /fresh     Fresh start (resets contexts)
+  /quit, /q  Exit
+
+Any other text is broadcast as direction to agents.
+Short inputs (a, y, n, etc.) require confirmation.
+`);
   }
 }

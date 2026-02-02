@@ -80,6 +80,18 @@ export class OrchestratorImpl implements IOrchestrator {
       this.handleFreshStart();
     });
 
+    this.humanDirector.onStatusRequest(() => {
+      this.printStatus();
+    });
+
+    this.humanDirector.onPause(() => {
+      this.pause();
+    });
+
+    this.humanDirector.onResume(() => {
+      this.resume();
+    });
+
     console.log(`[Orchestrator] Initialized with ${this.agents.size} agents`);
   }
 
@@ -196,6 +208,25 @@ export class OrchestratorImpl implements IOrchestrator {
       agents: agentStates,
       isPaused: this.paused,
     };
+  }
+
+  private printStatus(): void {
+    const state = this.getWorkflowState();
+    console.log(`
+Workflow Status:
+  Phase: ${state.currentPhase}
+  Paused: ${state.isPaused}
+  Completed: ${state.completedPhases.join(", ") || "none"}
+
+Agents:`);
+    for (const [id, agentState] of Object.entries(state.agents)) {
+      console.log(`  ${id}: ${agentState}`);
+    }
+    console.log(`
+Channels:`);
+    for (const ch of this.getChannels()) {
+      console.log(`  ${ch.name}: ${ch.subscriberCount} subscribers`);
+    }
   }
 
   getAgentIds(): AgentId[] {
