@@ -6,6 +6,56 @@ All notable changes to the agent-proxy-experiment will be documented in this fil
 
 ### Added - 2026-02-02
 
+#### CLI Interface for agent-proxy
+- Converted agent-proxy into a proper CLI tool installable globally via `npm install -g`
+- Added command-line flags: `--dir`, `--direction`, `--help`, `--version`
+- Refactored `src/index.ts` to export `createAgentProxy()` function for programmatic use
+- Created `src/cli.ts` as CLI entry point with argument parsing and validation
+- Added `bin` field to `package.json` for global command registration
+- Commits: `fcef2c1`, `b2c46fc` (fix)
+
+**Technical Details:**
+- Modified files: `src/index.ts`, `src/cli.ts` (new), `package.json`
+- No new dependencies - uses built-in `process.argv` parsing
+- Working directory precedence: CLI `--dir` flag → `AGENT_PROXY_WORKDIR` env var → `process.cwd()`
+- Shebang preserved by TypeScript compiler (no build script hacks needed)
+- Backward compatible: `npm run dev` still works
+
+**CLI Usage:**
+```bash
+agent-proxy                              # Interactive mode
+agent-proxy --dir ./my-project           # Specify working directory
+agent-proxy --direction "Fix auth bug"   # Pre-set direction (skips prompt)
+agent-proxy --help                       # Show usage
+agent-proxy --version                    # Show version
+```
+
+**Verification:**
+- TypeScript compilation passes (`npm run build`)
+- Shebang preserved in `dist/cli.js`
+- All CLI flags tested and working
+- Error handling for invalid directories verified
+- Global installation via `npm link` tested
+- `npm run dev` backward compatibility confirmed
+
+**Decision Rationale:**
+- Problem: Running via `npm run dev` was awkward for a tool meant to be used repeatedly
+- Solution: Proper CLI with standard conventions
+- Staff challenged scope: Kept minimal (no `--quiet` flag, basic validation only)
+- Team converged: Four flags with no external dependencies
+
+**Collaborative Design Process:**
+- Architect identified pain point and proposed CLI conversion
+- Staff pushed for minimal scope
+- Developer wrote comprehensive test plan before implementation
+- Knowledge Coordinator provided technical guidance
+- Staff verified tests independently before approving commit
+
+**Key Principle Reinforced:**
+> "Build the minimal thing first" - No CLI libraries (commander/yargs), just process.argv
+
+---
+
 #### Knowledge Coordinator Agent (Experimental)
 - Added single knowledge coordinator agent for codebase Q&A
 - Agent pre-reads all src/*.ts files on initialization
