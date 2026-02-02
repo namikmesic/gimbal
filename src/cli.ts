@@ -2,6 +2,7 @@
 import * as readline from "readline";
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
 import { createGimbal } from "./index.js";
 
 interface ParsedArgs {
@@ -68,7 +69,7 @@ Examples:
 
 function showVersion(): void {
   // Read version from package.json
-  const packageJsonPath = path.join(path.dirname(new URL(import.meta.url).pathname), "../package.json");
+  const packageJsonPath = path.join(path.dirname(fileURLToPath(import.meta.url)), "../package.json");
   try {
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
     console.log(packageJson.version);
@@ -120,7 +121,7 @@ async function getSelfImproveDirection(): Promise<string> {
 
 function getGimbalRootDir(): string {
   // From dist/cli.js, go up one level to project root
-  const cliDir = path.dirname(new URL(import.meta.url).pathname);
+  const cliDir = path.dirname(fileURLToPath(import.meta.url));
   return path.resolve(cliDir, "..");
 }
 
