@@ -2,20 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
-
-interface TranscriptMessage {
-  time: string;
-  from: string;
-  to: string;
-  content: string;
-}
-
-interface ParsedTranscript {
-  startTime: string;
-  direction?: string;
-  messages: TranscriptMessage[];
-  endTime?: string;
-}
+import { TranscriptReaderImpl, ParsedSession } from "./transcript-writer.js";
 
 export interface VoiceSummaryOptions {
   transcriptPath: string;
@@ -24,72 +11,9 @@ export interface VoiceSummaryOptions {
 }
 
 /**
- * Parse a TRANSCRIPT.md file into structured data.
- */
-export function parseTranscript(content: string): ParsedTranscript {
-  const lines = content.split("\n");
-  const result: ParsedTranscript = {
-    startTime: "",
-    messages: [],
-  };
-
-  // Extract session metadata
-  const startedMatch = content.match(/\*\*Started:\*\*\s*(.+)/);
-  if (startedMatch) {
-    result.startTime = startedMatch[1].trim();
-  }
-
-  const directionMatch = content.match(/\*\*Direction:\*\*\s*(.+)/);
-  if (directionMatch) {
-    result.direction = directionMatch[1].trim();
-  }
-
-  const endedMatch = content.match(/\*\*Ended:\*\*\s*(.+)/);
-  if (endedMatch) {
-    result.endTime = endedMatch[1].trim();
-  }
-
-  // Parse messages - format: ### [HH:MM:SS] from → to
-  const messageHeaderRegex = /^### \[(\d{2}:\d{2}:\d{2})\] (.+?) → (.+)$/;
-  let currentMessage: TranscriptMessage | null = null;
-  let contentLines: string[] = [];
-
-  for (const line of lines) {
-    const headerMatch = line.match(messageHeaderRegex);
-
-    if (headerMatch) {
-      // Save previous message
-      if (currentMessage) {
-        currentMessage.content = contentLines.join("\n").trim();
-        result.messages.push(currentMessage);
-      }
-
-      // Start new message
-      currentMessage = {
-        time: headerMatch[1],
-        from: headerMatch[2],
-        to: headerMatch[3],
-        content: "",
-      };
-      contentLines = [];
-    } else if (currentMessage && line !== "---") {
-      contentLines.push(line);
-    }
-  }
-
-  // Save final message
-  if (currentMessage) {
-    currentMessage.content = contentLines.join("\n").trim();
-    result.messages.push(currentMessage);
-  }
-
-  return result;
-}
-
-/**
  * Generate a "Friday demo" style summary using Claude.
  */
-async function generateSummaryText(transcript: ParsedTranscript): Promise<string> {
+async function generateSummaryText(session: ParsedSession): Promise<string> {
   const systemPrompt = `You are a tech lead preparing a "Friday Demo" style summary of an automated multi-agent development session. Your summary will be read aloud, so write for spoken delivery.
 
 Guidelines:
@@ -105,12 +29,20 @@ Guidelines:
 
 Output only the summary text, ready to be read aloud. No headers or formatting.`;
 
-  const transcriptSummary = `Session Direction: ${transcript.direction || "Not specified"}
-Started: ${transcript.startTime}
-${transcript.endTime ? `Ended: ${transcript.endTime}` : ""}
+  // Format messages for the prompt
+  const messagesSummary = session.messages
+    .map((m) => {
+      const target = m.channel || m.to;
+      return `[${m.from} → ${target}]: ${m.content}`;
+    })
+    .join("\n\n");
+
+  const transcriptSummary = `Session Direction: ${session.direction || "Not specified"}
+Started: ${session.startTime}
+${session.endTime ? `Ended: ${session.endTime}` : ""}
 
 Conversation between agents:
-${transcript.messages.map((m) => `[${m.from} → ${m.to}]: ${m.content}`).join("\n\n")}`;
+${messagesSummary}`;
 
   const prompt = `Create a spoken "Friday Demo" summary for this multi-agent development session:
 
@@ -202,17 +134,16 @@ export async function generateVoiceSummary(
     throw new Error(`Transcript file not found: ${transcriptPath}`);
   }
 
-  // Parse transcript
-  const content = fs.readFileSync(transcriptPath, "utf-8");
-  const transcript = parseTranscript(content);
+  // Parse transcript using the shared reader
+  const session = TranscriptReaderImpl.parseFile(transcriptPath);
 
-  if (transcript.messages.length === 0) {
+  if (session.messages.length === 0) {
     throw new Error("No messages found in transcript. Is the file empty?");
   }
 
   // Generate summary
   console.log("Generating summary with Claude...");
-  const summaryText = await generateSummaryText(transcript);
+  const summaryText = await generateSummaryText(session);
 
   console.log("\n--- Summary ---");
   console.log(summaryText);
