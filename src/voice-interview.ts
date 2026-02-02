@@ -64,9 +64,14 @@ ${transcriptContent}
 
 ${changelogContent ? `=== CHANGELOG ===\n${changelogContent}\n` : ""}
 ${retrospectiveContent ? `=== RETROSPECTIVE ===\n${retrospectiveContent}\n` : ""}
-Answer questions about what happened, explain decisions, highlight learnings.
-Keep responses concise (under 30 seconds spoken, ~75-100 words).
-Be conversational and natural - this is a voice interview.`;
+IMPORTANT: This is a spoken voice interview. Your responses will be read aloud.
+- Never use code blocks, inline code formatting, or code snippets
+- Never use markdown formatting (backticks, asterisks, etc.)
+- Speak naturally as if in a conversation
+- You can mention file names or line numbers verbally
+- Keep responses concise (under 30 seconds spoken, ~75-100 words)
+
+Answer questions about what happened, explain decisions, highlight learnings.`;
 }
 
 /**
@@ -131,13 +136,11 @@ export async function startVoiceInterview(options: VoiceInterviewOptions): Promi
 
     const audioStream = await client.textToSpeech.convert(voiceId, {
       text,
-      modelId: "eleven_multilingual_v2",
+      modelId: "eleven_flash_v2_5",
       outputFormat: "mp3_44100_128",
       voiceSettings: {
         stability: 0.4,
         similarityBoost: 0.75,
-        style: 0.5,
-        useSpeakerBoost: true,
       },
     });
 
@@ -175,7 +178,7 @@ export async function startVoiceInterview(options: VoiceInterviewOptions): Promi
       const response = query({
         prompt: text,
         options: {
-          model: "sonnet",
+          model: "opus",
           systemPrompt,
           resume: sessionId,
           cwd: process.cwd(),
