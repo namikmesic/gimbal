@@ -121,16 +121,34 @@ ${transcriptSummary}`;
   const response = query({
     prompt,
     options: {
-      model: "claude-sonnet-4-5-20250514",
+      model: "opus",
       systemPrompt,
-      allowedTools: [],
+      cwd: process.cwd(),
+      permissionMode: "default" as const,
+      tools: [],
     },
   });
 
   for await (const message of response) {
-    if (message.type === "assistant" && "content" in message) {
-      if (typeof message.content === "string") {
-        summaryText += message.content;
+    if (message.type === "system" && message.subtype === "init") {
+      // Session initialized
+      continue;
+    }
+    if (message.type === "assistant") {
+      // Extract text from the BetaMessage content array
+      const betaMessage = message.message;
+      if (betaMessage && betaMessage.content) {
+        for (const block of betaMessage.content) {
+          if ("text" in block && typeof block.text === "string") {
+            summaryText += block.text;
+          }
+        }
+      }
+    }
+    if (message.type === "result") {
+      if (message.subtype !== "success") {
+        const errorMsg = "errors" in message ? (message as { errors?: string[] }).errors?.join(", ") : "Unknown error";
+        throw new Error(`Claude query failed: ${errorMsg}`);
       }
     }
   }
