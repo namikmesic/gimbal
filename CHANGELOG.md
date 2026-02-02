@@ -6,6 +6,38 @@ All notable changes to the agent-proxy-experiment will be documented in this fil
 
 ### Added - 2026-02-02
 
+#### README.md User Documentation
+- Created comprehensive README.md for user-facing documentation
+- Installation instructions for both `npm install -g` and `npx` usage
+- CLI reference documenting all flags: `--dir`, `--direction`, `--help`/`-h`, `--version`/`-v`
+- Quick start guide with interactive mode walkthrough
+- Brief agent system overview (kept minimal per team guidance)
+- Links to CLAUDE.md, CHANGELOG.md, RETROSPECTIVE.md
+- Commit: `948be96`
+
+**Technical Details:**
+- Single new file: README.md (135 lines)
+- No code changes, documentation only
+- Zero regression risk
+
+**Verification:**
+- All 8 acceptance criteria verified with evidence
+- CLI flags cross-checked against src/cli.ts source
+- Package.json metadata alignment confirmed
+- All documentation links verified to exist
+- Staff caught unrelated package.json changes in working directory; reverted before commit
+
+**Decision Rationale:**
+- Problem: CLI tool installable via npm had zero user-facing documentation
+- Solution: Minimal README covering install, usage, and CLI reference
+- Staff enforced scope: Agent descriptions kept to ~300 chars, deferred troubleshooting section
+- Team collaboration: Knowledge provided source references, Architect added interactive workflow section
+
+**Key Principle Reinforced:**
+> "User documentation is not optional for distributed tools"
+
+---
+
 #### CLI Interface for agent-proxy
 - Converted agent-proxy into a proper CLI tool installable globally via `npm install -g`
 - Added command-line flags: `--dir`, `--direction`, `--help`, `--version`
