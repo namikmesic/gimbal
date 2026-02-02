@@ -4,6 +4,107 @@ Learnings from gimbal improvement cycles.
 
 ---
 
+## 2026-02-02: Agent Error Recovery and Visibility
+
+**Feature:** Add error broadcasting to `#errors` channel when agents fail during message processing.
+
+**Commit:** `77cdb37`
+
+### What Went Well
+
+**Proposal Quality:**
+- Problem was real and validated by Staff in code (not theoretical) - agent failures causing workflow deadlocks
+- Clear three-part structure (Problem → Solution → Acceptance Criteria) kept discussion focused
+- Minimal scope from the start - reused existing `publishToChannel()` infrastructure, no new dependencies
+- 5 specific, testable acceptance criteria eliminated ambiguity
+
+**Quality Gates Working:**
+- Staff's conditional approval with clarifying questions improved the proposal (timestamp format, broadcast timing)
+- Test plan approval before implementation ensured verification strategy was solid
+- Post-commit verification from previous retrospective lessons was applied successfully
+- Scope creep caught: vitest/package.json changes excluded from commit
+
+**Team Collaboration:**
+- Knowledge provided excellent early technical verification (code locations, method signatures, feasibility)
+- Team discussion led to better decisions (ISO timestamp vs epoch milliseconds)
+- Timing confusion was resolved through explicit discussion before implementation began
+- Developer incorporated RETROSPECTIVE.md lessons into test plan
+
+### What Went Wrong
+
+**Message Crossing and Timing Confusion:**
+- Architect misread Staff's message about broadcast timing, stating Staff wanted "BEFORE state change" when Staff actually approved "AFTER state change"
+- Multiple agents responded simultaneously to Staff's conditional approval, creating temporary confusion
+- Developer submitted test plan before proposal was fully approved
+
+**Root Cause Analysis:**
+1. Architect didn't carefully re-read Staff's exact words before responding
+2. No "wait for responses" protocol when Staff asks clarifying questions
+3. Eagerness to proceed led to premature test plan submission
+
+**Impact:** Wasted several message rounds clarifying timing, but the process caught the error before implementation began. No code rework was needed.
+
+### Process Improvements
+
+**1. Quote Exact Text When Responding to Approvals**
+When responding to conditional approval or clarifying questions, quote the exact text being addressed to avoid misinterpretation:
+```
+Staff said: "Place broadcast after state change, before throw"
+My response: Confirmed, implementing broadcast AFTER state change...
+```
+
+**2. Wait for Architect Response Before Test Plan**
+When Staff asks clarifying questions on proposal:
+1. Architect responds first with clarifications
+2. Staff gives final approval
+3. THEN Developer writes test plan
+
+This prevents parallel work based on unclear requirements.
+
+**3. Reference Messages by Content, Not ID**
+Message IDs may not be visible to all agents. Reference messages by content quotes rather than "msg_15" or similar.
+
+**4. Pre-Implementation Clean State Check (Reinforced)**
+The test plan correctly included `git status` verification, which caught the package.json scope creep. This practice from previous retrospective continues to prove valuable.
+
+### Role-Specific Learnings
+
+**Architect:**
+- Reading comprehension matters in technical discussions - precision is critical during quality gates
+- Starting with "is this a REAL pain point?" before proposing builds confidence
+- Minimal proposals get faster approval (~10 lines of code, no dependencies)
+- When Staff asks clarifying questions, they're improving the proposal
+
+**Developer:**
+- Test plan complexity should match implementation complexity (Staff correctly simplified approach)
+- Always run `git status` before starting implementation AND before staging
+- Post-commit verification with `git show HEAD` prevents "works on my machine" issues
+- Clear specifications prevent rework - zero code changes needed after initial implementation
+
+**Knowledge:**
+- Proactive technical verification in planning phase prevents implementation rework
+- Early verification of code locations and method signatures gave team confidence
+- Being subscribed to both #planning and #implementation provides good visibility
+- Supporting scope discipline enforcement (catching vitest addition) reinforces acceptance criteria
+
+### Key Principles Reinforced
+
+> "Quality gates work when reviewers ask clarifying questions AND proposers read those questions carefully"
+
+> "Proactive technical verification in planning phase prevents implementation rework"
+
+> "Error visibility is critical for multi-agent coordination - silent failures cause deadlocks"
+
+### What Made This Smooth
+
+- Real problem with minimal solution (existing infrastructure reused)
+- 5 clear acceptance criteria that matched actual implementation
+- Quality gate caught the one scope issue (package.json) before it shipped
+- Post-commit verification confirmed committed code matched specification
+- Team aligned on technical details through explicit discussion BEFORE implementation
+
+---
+
 ## 2026-02-02: CLI Interface Conversion
 
 **Feature:** Convert gimbal to proper CLI tool with `--dir`, `--direction`, `--help`, `--version` flags.

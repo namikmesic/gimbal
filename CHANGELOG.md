@@ -6,6 +6,61 @@ All notable changes to the gimbal-experiment will be documented in this file.
 
 ### Added - 2026-02-02
 
+#### Agent Error Recovery and Visibility
+- Added automatic error broadcasting to `#errors` channel when agents fail during message processing
+- Staff Engineer now auto-subscribed to `#errors` channel for immediate visibility of agent failures
+- Error messages include: agent ID, error message, and ISO timestamp for human readability
+- Commit: `77cdb37`
+
+**Technical Details:**
+- Modified files: `src/agent-lifecycle.ts`, `src/index.ts`
+- Total: 9 lines added (6 in agent-lifecycle.ts, 3 in index.ts)
+- No new dependencies
+- Uses existing `publishToChannel()` infrastructure
+
+**Error Message Format:**
+```
+[ERROR from {agentId}] {error.message} (occurred at {ISO timestamp})
+```
+Example: `[ERROR from developer] timeout exceeded (occurred at 2026-02-02T15:30:45.123Z)`
+
+**Implementation Details:**
+- Error broadcast happens in catch block: `console.error → state="ready" → broadcast → throw`
+- Existing error handling behavior fully preserved (console logging, state transition, re-throw)
+- Broadcast is non-blocking; if it fails, error still propagates correctly
+- Staff auto-subscription placed with other channel subscriptions in initialization
+
+**Verification:**
+- All 5 acceptance criteria verified in committed code
+- Post-commit verification: `git show` confirmed changes, rebuild passed, smoke test passed
+- Staff caught scope creep (vitest addition in package.json) - reverted before commit
+
+**Problem Solved:**
+Agent failures were invisible to the team, causing workflow deadlocks. When an agent encountered an error:
+- Error was logged to console only
+- Other agents had no visibility
+- Workflows would hang waiting for the failed agent
+- Human operators received no clear notification
+
+**Decision Rationale:**
+- Minimal solution: Uses existing channel infrastructure
+- Staff auto-subscription: Quality gate (Staff) gets immediate error visibility
+- ISO timestamp: Human-readable, includes timezone
+- Broadcast after state change: Agent in stable state before I/O operation (safer)
+
+**Collaborative Design Process:**
+- Architect identified real pain point and proposed minimal solution
+- Staff validated problem in code, pushed for clarity on implementation details
+- Knowledge verified all code references and technical feasibility
+- Developer wrote comprehensive test plan incorporating RETROSPECTIVE.md lessons
+- Staff enforced scope discipline (caught unrelated package.json changes)
+- Team aligned on broadcast timing through explicit discussion
+
+**Key Principle Reinforced:**
+> "Error visibility is critical for multi-agent coordination - silent failures cause deadlocks"
+
+---
+
 #### README.md User Documentation
 - Created comprehensive README.md for user-facing documentation
 - Installation instructions for both `npm install -g` and `npx` usage
@@ -28,7 +83,7 @@ All notable changes to the gimbal-experiment will be documented in this file.
 - Staff caught unrelated package.json changes in working directory; reverted before commit
 
 **Decision Rationale:**
-- Problem: CLI tool installable via npm had zero user-facing documentation
+- Problem: CLI tool with zero user-facing documentation
 - Solution: Minimal README covering install, usage, and CLI reference
 - Staff enforced scope: Agent descriptions kept to ~300 chars, deferred troubleshooting section
 - Team collaboration: Knowledge provided source references, Architect added interactive workflow section
