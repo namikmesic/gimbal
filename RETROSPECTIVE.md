@@ -90,6 +90,80 @@ Better format:
 
 ---
 
+## 2026-02-02: README.md User Documentation
+
+**Feature:** Add user-facing documentation for agent-proxy CLI tool.
+
+**Commits:** `948be96` (README.md), `3b8c41e` (CHANGELOG)
+
+### What Went Well
+
+**Proposal Quality:**
+- Clear problem identification (CLI tool with zero user documentation)
+- 8 specific, testable acceptance criteria eliminated ambiguity
+- Team collaboration improved the proposal (Knowledge suggested interactive workflow section, Staff enforced minimal agent descriptions)
+
+**Quality Gate Success:**
+- Staff caught unrelated package.json changes during pre-commit review
+- Git status verification prevented scope creep
+- Developer reverted cleanly before commit
+
+**Process Discipline:**
+- Test plan written and approved BEFORE implementation
+- Evidence-based verification (line numbers, file sizes) made review efficient
+- Post-commit verification confirmed clean state
+
+**Collaboration:**
+- Knowledge provided accurate source code references (CLI flags, agent roles)
+- Architect incorporated team feedback into proposal
+- Developer's thorough test results with evidence made approval fast
+
+### What Could Be Improved
+
+**1. Explicit Scope Boundaries**
+- Proposal said "Files to create: README.md" but didn't explicitly say "no code changes"
+- Unintended package.json changes were in working directory from earlier work
+- **Action:** Add "Out of Scope" section to proposal template
+
+**2. Pre-Implementation Clean State Check**
+- Developer didn't verify clean git status before starting
+- Package.json changes surprised team during final review
+- **Action:** Add "verify clean working tree" to test plan template
+
+**3. Approval Signal Clarity**
+- Some timeline confusion about test plan approval status (crossed messages)
+- **Action:** Use explicit state transitions ("ENTERING IMPLEMENTATION PHASE")
+
+### Process Improvements
+
+**Proposal Template Addition:**
+```
+**In Scope:**
+- [What will change]
+
+**Out of Scope (NOT changing):**
+- [What won't change]
+```
+
+**Test Plan Template Addition:**
+```
+**Pre-Implementation Check:**
+- [ ] `git status` shows clean working tree (or known/approved changes only)
+```
+
+### Key Learning
+
+> "Explicit scope boundaries (including what's NOT changing) prevent scope creep and reduce review friction"
+
+### What Made This Smooth
+
+- Documentation-only task (low risk)
+- Clear acceptance criteria (no ambiguity)
+- Quality gate caught the one issue before it shipped
+- Team feedback improved final deliverable
+
+---
+
 ## Template for Future Retrospectives
 
 ### What Went Well
