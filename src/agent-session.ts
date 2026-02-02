@@ -1,6 +1,6 @@
 import { query, createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
-import { AgentConfig, AgentState, Message } from "./types.js";
+import { AgentConfig, AgentState, Message, SignOffCallback } from "./types.js";
 import { MessageQueue } from "./message-queue.js";
 
 export class AgentSession {
@@ -8,6 +8,7 @@ export class AgentSession {
   private state: AgentState;
   private messageQueue: MessageQueue;
   private workingDirectory: string;
+  private signOffCallback: SignOffCallback | null = null;
 
   constructor(
     config: AgentConfig,
@@ -34,6 +35,14 @@ export class AgentSession {
 
   get isProcessing(): boolean {
     return this.state.isProcessing;
+  }
+
+  setSignOffCallback(callback: SignOffCallback): void {
+    this.signOffCallback = callback;
+  }
+
+  resetContext(): void {
+    this.state.sessionId = undefined;
   }
 
   hasIncomingMessages(): boolean {
@@ -210,6 +219,25 @@ export class AgentSession {
       }
     );
 
+    const signOffTool = tool(
+      "sign_off",
+      "Sign off to indicate you have completed your current work and have no further actions to take. Use this when you have finished all tasks assigned to you and are waiting for new direction. When all agents sign off, the human overseer will be prompted to provide feedback (continuing with existing context) or start fresh (resetting all contexts).",
+      {},
+      async () => {
+        if (this.signOffCallback) {
+          this.signOffCallback(agentId);
+        }
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "You have signed off. The system will notify you when new direction is available.",
+            },
+          ],
+        };
+      }
+    );
+
     return createSdkMcpServer({
       name: `messaging-${agentId}`,
       version: "1.0.0",
@@ -221,6 +249,7 @@ export class AgentSession {
         unsubscribeTool,
         publishTool,
         listChannelsTool,
+        signOffTool,
       ],
     });
   }
@@ -278,6 +307,9 @@ Channel-based communication (pub/sub):
 - publish: Send a message to all channel subscribers
 - list_channels: See all active channels and your subscriptions
 
+Workflow control:
+- sign_off: Signal that you have completed your current work and are waiting for new direction. Use this when you have no further actions to take. When all agents sign off, the human overseer will provide feedback or request a fresh start.
+
 Channels are useful for topic-based discussions. Use #planning for proposals and discussions,
 #implementation for code-related work. Subscribe before publishing.
 
@@ -296,6 +328,7 @@ Be collaborative and helpful to other agents.`;
         "mcp__messaging__unsubscribe",
         "mcp__messaging__publish",
         "mcp__messaging__list_channels",
+        "mcp__messaging__sign_off",
       ];
 
       // Code tools from agent config (defaults to empty array if not specified)

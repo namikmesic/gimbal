@@ -47,3 +47,5 @@ export interface ProxyConfig {
   tickIntervalMs?: number;
   workingDirectory?: string;
 }
+
+export type SignOffCallback = (agentId: string) => void;
