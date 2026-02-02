@@ -331,22 +331,29 @@ export class AgentLifecycleImpl implements IAgentLifecycle {
     this.agentState.lastActivity = Date.now();
 
     try {
-      const incomingMessages = this.messageStore.dequeue(this.config.id);
-      const messagesText = this.formatIncomingMessages(incomingMessages);
+      const MAX_RETRIES = 3;
+      const delays = [1000, 2000, 4000]; // 1s, 2s, 4s exponential backoff
+      let attempt = 0;
 
-      let prompt: string;
-      if (initialPrompt) {
-        prompt = initialPrompt + messagesText;
-      } else if (incomingMessages.length > 0) {
-        prompt = `You have received messages from other agents:${messagesText}\n\nRespond appropriately using the send_message tool.`;
-      } else {
-        this.agentState.lifecycleState = "ready";
-        return "No messages to process";
-      }
+      while (attempt < MAX_RETRIES) {
+      try {
+        // Peek at messages without removing them
+        const incomingMessages = this.messageStore.peek(this.config.id);
+        const messagesText = this.formatIncomingMessages(incomingMessages);
 
-      const messagingServer = this.createMessagingServer();
+        let prompt: string;
+        if (initialPrompt) {
+          prompt = initialPrompt + messagesText;
+        } else if (incomingMessages.length > 0) {
+          prompt = `You have received messages from other agents:${messagesText}\n\nRespond appropriately using the send_message tool.`;
+        } else {
+          this.agentState.lifecycleState = "ready";
+          return "No messages to process";
+        }
 
-      const systemPrompt = `${this.config.systemPrompt}
+        const messagingServer = this.createMessagingServer();
+
+        const systemPrompt = `${this.config.systemPrompt}
 
 You are agent "${this.config.id}" (${this.config.name}) in a multi-agent network.
 
@@ -370,71 +377,90 @@ Channels are useful for topic-based discussions. Use #planning for proposals and
 When you receive messages, read them and respond appropriately.
 Be collaborative and helpful to other agents.`;
 
-      let responseText = "";
-      let sessionId: string | undefined;
+        let responseText = "";
+        let sessionId: string | undefined;
 
-      // Messaging tools available to all agents
-      const messagingTools = [
-        "mcp__messaging__send_message",
-        "mcp__messaging__broadcast",
-        "mcp__messaging__list_agents",
-        "mcp__messaging__subscribe",
-        "mcp__messaging__unsubscribe",
-        "mcp__messaging__publish",
-        "mcp__messaging__list_channels",
-        "mcp__messaging__sign_off",
-      ];
+        // Messaging tools available to all agents
+        const messagingTools = [
+          "mcp__messaging__send_message",
+          "mcp__messaging__broadcast",
+          "mcp__messaging__list_agents",
+          "mcp__messaging__subscribe",
+          "mcp__messaging__unsubscribe",
+          "mcp__messaging__publish",
+          "mcp__messaging__list_channels",
+          "mcp__messaging__sign_off",
+        ];
 
-      // Code tools from agent config (defaults to empty array if not specified)
-      const codeTools = this.config.tools || [];
+        // Code tools from agent config (defaults to empty array if not specified)
+        const codeTools = this.config.tools || [];
 
-      const options: Parameters<typeof query>[0]["options"] = {
-        model: this.config.model || "claude-sonnet-4-5-20250514",
-        systemPrompt,
-        cwd: this.workingDirectory,
-        mcpServers: {
-          messaging: messagingServer,
-        },
-        allowedTools: [...messagingTools, ...codeTools],
-        permissionMode: "bypassPermissions" as const,
-      };
+        const options: Parameters<typeof query>[0]["options"] = {
+          model: this.config.model || "claude-sonnet-4-5-20250514",
+          systemPrompt,
+          cwd: this.workingDirectory,
+          mcpServers: {
+            messaging: messagingServer,
+          },
+          allowedTools: [...messagingTools, ...codeTools],
+          permissionMode: "bypassPermissions" as const,
+        };
 
-      if (this.agentState.sessionId) {
-        options.resume = this.agentState.sessionId;
-      }
-
-      const response = query({
-        prompt,
-        options,
-      });
-
-      for await (const message of response) {
-        if (message.type === "system" && message.subtype === "init") {
-          sessionId = message.session_id;
+        if (this.agentState.sessionId) {
+          options.resume = this.agentState.sessionId;
         }
-        if (message.type === "assistant" && "content" in message) {
-          if (typeof message.content === "string") {
-            responseText += message.content;
+
+        const response = query({
+          prompt,
+          options,
+        });
+
+        for await (const message of response) {
+          if (message.type === "system" && message.subtype === "init") {
+            sessionId = message.session_id;
+          }
+          if (message.type === "assistant" && "content" in message) {
+            if (typeof message.content === "string") {
+              responseText += message.content;
+            }
           }
         }
+
+        if (sessionId) {
+          this.agentState.sessionId = sessionId;
+        }
+
+        // Only remove messages from queue on successful processing
+        this.messageStore.dequeue(this.config.id);
+
+        this.agentState.lifecycleState = "ready";
+        return responseText || "Processed";
+      } catch (error) {
+        attempt++;
+        console.error(`[${this.config.id}] Error (attempt ${attempt}/${MAX_RETRIES}):`, error);
+
+        const timestamp = new Date().toISOString();
+
+        if (attempt < MAX_RETRIES) {
+          // Broadcast retry attempt to #errors channel
+          const errorMsg = `[ERROR from ${this.config.id}] ${(error as Error).message} (attempt ${attempt}/${MAX_RETRIES}) at ${timestamp}`;
+          this.messageRouter.publishToChannel(this.config.id, "#errors", errorMsg);
+
+          // Wait before retry with exponential backoff
+          await new Promise(resolve => setTimeout(resolve, delays[attempt - 1]));
+        } else {
+          // Final failure after all retries
+          this.agentState.lifecycleState = "ready";
+          const errorMsg = `[ERROR from ${this.config.id}] FINAL attempt ${attempt}/${MAX_RETRIES} failed: ${(error as Error).message} at ${timestamp}`;
+          this.messageRouter.publishToChannel(this.config.id, "#errors", errorMsg);
+          throw error;
+        }
       }
+    }
 
-      if (sessionId) {
-        this.agentState.sessionId = sessionId;
-      }
-
+      // Should never reach here, but satisfy TypeScript
       this.agentState.lifecycleState = "ready";
-      return responseText || "Processed";
-    } catch (error) {
-      console.error(`[${this.config.id}] Error:`, error);
-      this.agentState.lifecycleState = "ready";
-
-      // Broadcast error to #errors channel for team visibility
-      const timestamp = new Date().toISOString();
-      const errorMsg = `[ERROR from ${this.config.id}] ${(error as Error).message} (occurred at ${timestamp})`;
-      this.messageRouter.publishToChannel(this.config.id, "#errors", errorMsg);
-
-      throw error;
+      return "Max retries exceeded";
     } finally {
       this.agentState.isProcessing = false;
     }

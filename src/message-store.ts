@@ -31,6 +31,11 @@ export class MessageStoreImpl implements IMessageStore {
     return messages;
   }
 
+  peek(agentId: AgentId): Message[] {
+    const queue = this.queues.get(agentId);
+    return queue ? [...queue] : [];
+  }
+
   hasPending(agentId: AgentId): boolean {
     const queue = this.queues.get(agentId);
     return queue ? queue.length > 0 : false;

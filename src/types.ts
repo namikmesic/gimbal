@@ -159,6 +159,7 @@ export interface MessageRouter {
 export interface MessageStore {
   enqueue(agentId: AgentId, message: Message): void;
   dequeue(agentId: AgentId): Message[];
+  peek(agentId: AgentId): Message[];
   hasPending(agentId: AgentId): boolean;
   createQueue(agentId: AgentId): void;
 }
