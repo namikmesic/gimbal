@@ -66,7 +66,7 @@ export type SignOffCallback = (agentId: string) => void;
 export type AgentId = string;
 
 /** Role type for agents in the workflow */
-export type AgentRole = "architect" | "developer" | "staff" | "knowledge";
+export type AgentRole = "architect" | "developer" | "staff" | "knowledge" | "research";
 
 /** Channel identifier (always starts with #, e.g., "#planning") */
 export type ChannelId = string;

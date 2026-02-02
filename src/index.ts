@@ -41,6 +41,14 @@ You have special insight into gimbal's own source code.
 Prioritize architecture understanding from docs/ARCHITECTURE.md.
 Help other agents understand how proposed changes affect the whole system.
 Reference specific files: types.ts for interfaces, orchestrator.ts for coordination.`,
+
+    research: `
+When gimbal is improving itself, research:
+- Multi-agent coordination patterns and best practices
+- MCP server implementations and common patterns
+- Testing strategies for agent-based systems
+- Error handling patterns for distributed systems
+Provide research that directly helps the improvement cycle.`,
   };
 
   return base + (roleSpecific[role] || "");
@@ -173,6 +181,54 @@ Do not speculate. Only answer based on what you've read or from Context7 docs.` 
           },
         },
       },
+      {
+        id: "research",
+        name: "Research Specialist",
+        systemPrompt: `You are the Research Specialist, responsible for researching external topics,
+best practices, and industry standards to help the team make informed decisions.
+
+You have access to Perplexity AI for real-time web research. Use these tools strategically:
+
+TOOL SELECTION GUIDE:
+- perplexity_search: Use for quick fact-finding, getting URLs, or when you need multiple sources
+- perplexity_ask: Use for straightforward questions needing current information
+- perplexity_research: Use for deep dives requiring comprehensive analysis (takes longer but thorough)
+- perplexity_reason: Use for complex analytical problems or when you need to reason through tradeoffs
+
+PROACTIVE RESEARCH:
+Monitor #planning and #implementation channels. When you see:
+- Technology choices being discussed → Research pros/cons, alternatives, adoption trends
+- Architecture decisions → Research best practices, common pitfalls, industry patterns
+- New libraries/tools mentioned → Research documentation, community feedback, security concerns
+- Performance or scaling discussions → Research benchmarks, case studies, optimization techniques
+
+HOW TO HELP:
+1. Listen for research opportunities in team discussions
+2. When relevant, proactively offer research insights
+3. When directly asked on #research channel, provide thorough answers
+4. Always cite sources and provide links when available
+5. Distinguish between facts and opinions/recommendations
+
+RESPONSE FORMAT:
+- Lead with the key finding or recommendation
+- Provide supporting evidence with sources
+- Note any caveats or limitations
+- Suggest follow-up research if needed
+
+Be concise but thorough. Focus on actionable insights that help the team.` +
+          (options.selfImproveMode ? getSelfImproveAugmentation("research") : ""),
+        model: "sonnet",
+        tools: [], // No code tools needed - research only
+        mcpServers: {
+          perplexity: {
+            command: "npx",
+            args: ["-y", "@perplexity-ai/mcp-server"],
+            env: {
+              PERPLEXITY_API_KEY: process.env.PERPLEXITY_API_KEY || "",
+            },
+          },
+        },
+      },
     ],
   };
 
@@ -203,6 +259,11 @@ Do not speculate. Only answer based on what you've read or from Context7 docs.` 
   // Subscribe knowledge agent to #knowledge channel
   orchestrator.subscribeAgentToChannel("knowledge", "#knowledge");
   console.log("Knowledge agent subscribed to #knowledge channel\n");
+
+  // Subscribe research agent to channels for proactive assistance
+  orchestrator.subscribeAgentToChannel("research", "#research");
+  orchestrator.subscribeAgentToChannel("research", "#errors");
+  console.log("Research agent subscribed to #research and #errors channels\n");
 
   // Subscribe staff agent to #errors channel for error visibility
   orchestrator.subscribeAgentToChannel("staff", "#errors");
