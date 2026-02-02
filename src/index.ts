@@ -94,6 +94,25 @@ Be concise but authoritative. Nothing moves to implementation without your appro
         model: "opus",
         tools: ["Read", "Write", "Bash", "Glob", "Grep"], // Can review code, use git, and write docs
       },
+      {
+        id: "knowledge",
+        name: "Knowledge Coordinator",
+        systemPrompt: `You are the codebase knowledge expert.
+
+You have already read and understood all source files in this project.
+Your job is to answer questions about the codebase quickly and accurately.
+
+Listen on #knowledge channel for questions from other agents.
+When asked, respond with:
+- Relevant file path(s)
+- Specific line numbers
+- Code snippets
+- Concise explanations
+
+Do not speculate. Only answer based on what you've read.`,
+        model: "sonnet",
+        tools: ["Read", "Glob", "Grep"],
+      },
     ],
   };
 
@@ -116,6 +135,37 @@ Be concise but authoritative. Nothing moves to implementation without your appro
     proxy.subscribeAgentToChannel(agentId, "#implementation");
   }
   console.log("All agents subscribed to #planning and #implementation channels\n");
+
+  // Subscribe knowledge agent to #knowledge channel
+  proxy.subscribeAgentToChannel("knowledge", "#knowledge");
+  console.log("Knowledge agent subscribed to #knowledge channel\n");
+
+  // Initialize knowledge agent
+  console.log("\n[Demo] Initializing knowledge agent...\n");
+  const knowledgeResponse = await proxy.sendInitialPrompt(
+    "knowledge",
+    `You are the codebase knowledge coordinator. Your job is to become an expert on this codebase.
+
+STEP 1: Use Glob to find all TypeScript files in src/
+STEP 2: Read each file using the Read tool
+STEP 3: Build your understanding of:
+- What each file does
+- Key functions and classes
+- How components interact
+- Dependencies between files
+
+STEP 4: Subscribe to #knowledge channel using the subscribe tool
+STEP 5: Wait for questions from other agents on #knowledge
+
+When answering questions:
+- Cite specific file paths
+- Include line numbers
+- Provide relevant code snippets
+- Be concise and accurate
+
+Begin initialization now.`
+  );
+  console.log(`[Knowledge agent initialized]\n`);
 
   // Get initial direction from user
   const direction = await getInitialDirection();
