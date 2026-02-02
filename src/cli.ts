@@ -12,6 +12,9 @@ interface ParsedArgs {
   version?: boolean;
   selfImprove?: boolean;
   storeTranscripts?: boolean;
+  voiceSummary?: string;
+  voiceId?: string;
+  outputFile?: string;
 }
 
 function parseArgs(args: string[]): ParsedArgs {
@@ -40,6 +43,24 @@ function parseArgs(args: string[]): ParsedArgs {
       parsed.selfImprove = true;
     } else if (arg === "--store-transcripts") {
       parsed.storeTranscripts = true;
+    } else if (arg === "--voice-summary") {
+      if (i + 1 >= args.length) {
+        console.error("Error: --voice-summary requires a file path argument");
+        process.exit(1);
+      }
+      parsed.voiceSummary = args[++i];
+    } else if (arg === "--voice-id") {
+      if (i + 1 >= args.length) {
+        console.error("Error: --voice-id requires a voice ID argument");
+        process.exit(1);
+      }
+      parsed.voiceId = args[++i];
+    } else if (arg === "--output") {
+      if (i + 1 >= args.length) {
+        console.error("Error: --output requires a file path argument");
+        process.exit(1);
+      }
+      parsed.outputFile = args[++i];
     } else {
       console.error(`Error: Unknown option: ${arg}\n`);
       showHelp();
@@ -59,8 +80,14 @@ Options:
   --direction <text>   Initial direction for agents (skips interactive prompt)
   --self-improve       Run in self-improvement mode (gimbal improves itself)
   --store-transcripts  Save conversation transcript to TRANSCRIPT.md
+  --voice-summary <file>  Generate voice summary from TRANSCRIPT.md
+  --voice-id <id>         ElevenLabs voice ID (default: Adam)
+  --output <file>         Output audio file (default: summary.mp3)
   --help, -h           Show this help message
   --version, -v        Show version number
+
+Environment Variables:
+  ELEVENLABS_API_KEY   Required for --voice-summary
 
 Examples:
   gimbal                                    # Interactive mode
@@ -68,6 +95,7 @@ Examples:
   gimbal --direction "Fix auth bug"         # Pre-set direction
   gimbal --dir ./project --direction "..."  # Combined options
   gimbal --self-improve                     # Self-improvement mode
+  gimbal --voice-summary ./TRANSCRIPT.md    # Generate voice summary
 `);
 }
 
@@ -163,6 +191,23 @@ async function main() {
   if (args.version) {
     showVersion();
     process.exit(0);
+  }
+
+  // Handle voice summary command
+  if (args.voiceSummary) {
+    const { generateVoiceSummary } = await import("./voice-summary.js");
+    try {
+      const outputPath = await generateVoiceSummary({
+        transcriptPath: args.voiceSummary,
+        outputPath: args.outputFile,
+        voiceId: args.voiceId,
+      });
+      console.log(`Voice summary saved to: ${outputPath}`);
+      process.exit(0);
+    } catch (error) {
+      console.error(`Error: ${(error as Error).message}`);
+      process.exit(1);
+    }
   }
 
   // Validate and resolve directory if provided
