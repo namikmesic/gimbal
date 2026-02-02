@@ -4,6 +4,62 @@ All notable changes to the agent-proxy-experiment will be documented in this fil
 
 ## [Unreleased]
 
+### Added - 2026-02-02
+
+#### Knowledge Coordinator Agent (Experimental)
+- Added single knowledge coordinator agent for codebase Q&A
+- Agent pre-reads all src/*.ts files on initialization
+- Subscribes to #knowledge channel for queries from other agents
+- Responds with file paths, line numbers, and code snippets
+- Commit: `2070d75`
+
+**Technical Details:**
+- Modified files: `src/index.ts` only (50 lines added)
+- New agent config: id="knowledge", tools=["Read", "Glob", "Grep"], model="sonnet"
+- Initialization: Explicit prompt via `sendInitialPrompt()` to read all source files
+- Channel: Auto-subscribed to #knowledge for query/response communication
+
+**Verification:**
+- TypeScript compilation passes (`npx tsc --noEmit`)
+- Code review by Architect and Staff
+- No breaking changes to existing agents (architect, developer, staff)
+- Follows existing patterns (same config structure, same initialization approach)
+
+**Known Limitations (Acceptable for MVP):**
+- Stale knowledge: Agent reads files once on startup; restart required to refresh
+- Startup latency: Adds ~5-10 seconds while agent reads files
+- Context limits: May hit limits if codebase grows beyond ~20 files
+
+**Decision Rationale:**
+- Original proposal: Per-file agent spawning with dynamic lifecycle management
+- Staff challenged: "Is this solving a REAL pain point for 5 files?"
+- Team converged: Simplified to single knowledge agent MVP
+- Experiment mindset: Evaluate usefulness after 1 week; remove if not valuable
+
+**Collaborative Design Process:**
+- Architect proposed ambitious per-file agent architecture
+- Staff pushed back on complexity for a 5-file codebase
+- Developer supported simpler approach with concrete use case (parallelization)
+- Architect accepted feedback and revised to minimal MVP
+- Staff approved with explicit conditions: experiment, sunset clause, easy removal
+- Result: 50 lines of code instead of 300+ lines of infrastructure
+
+**Key Principle Reinforced:**
+> "Build the minimal thing first, add complexity only when proven necessary"
+
+**Expected Benefits:**
+- Parallelization: Other agents can query codebase without interrupting implementation
+- Separation of concerns: Knowledge agent holds "codebase state", Developer holds "task state"
+- Proof of concept: Validates knowledge agent pattern before building for scale
+
+**Evaluation Criteria (1 week):**
+- Was #knowledge channel used?
+- Did it save time/context switches?
+- Were answers accurate?
+- If no value demonstrated, remove the feature.
+
+---
+
 ### Changed - 2026-02-02
 
 #### Tool Permissions Extraction
