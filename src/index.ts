@@ -1,20 +1,20 @@
-import { AgentProxy } from "./proxy.js";
+import { Gimbal } from "./proxy.js";
 import { ProxyConfig } from "./types.js";
 
-export interface AgentProxyOptions {
+export interface GimbalOptions {
   workingDirectory?: string;
   initialDirection?: string;
 }
 
-export async function createAgentProxy(options: AgentProxyOptions = {}): Promise<void> {
+export async function createGimbal(options: GimbalOptions = {}): Promise<void> {
   const config: ProxyConfig = {
-    workingDirectory: options.workingDirectory || process.env.AGENT_PROXY_WORKDIR || process.cwd(),
+    workingDirectory: options.workingDirectory || process.env.GIMBAL_WORKDIR || process.cwd(),
     agents: [
       {
         id: "architect",
         name: "The Architect",
-        systemPrompt: `You are the Architect, a system designer for the agent-proxy project.
-Your job is to propose improvements to make agent communication better.
+        systemPrompt: `You are the Architect, a system designer for the gimbal project.
+Your job is to propose improvements to make the gimbal system better.
 Review the codebase, understand how it works, then propose ONE improvement.
 
 Your proposal MUST include:
@@ -112,7 +112,7 @@ Do not speculate. Only answer based on what you've read.`,
     ],
   };
 
-  const proxy = new AgentProxy(config);
+  const proxy = new Gimbal(config);
 
   console.log("\n=== Self-Improving Agent Demo ===\n");
   console.log("Agents:", proxy.getAgentIds().join(", "));
@@ -172,7 +172,7 @@ Begin initialization now.`
   try {
     const response = await proxy.sendInitialPrompt(
       "architect",
-      `Welcome! You're working on the agent-proxy codebase in ${config.workingDirectory}.
+      `Welcome! You're working on the gimbal codebase in ${config.workingDirectory}.
 
 [HUMAN DIRECTION]: ${direction}
 

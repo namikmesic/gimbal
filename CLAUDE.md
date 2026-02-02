@@ -16,7 +16,7 @@ This is a multi-agent proxy system where multiple Claude agents communicate peer
 
 ### Core Components
 
-**AgentProxy** (`proxy.ts`) - Main orchestrator that:
+**Gimbal** (`proxy.ts`) - Main orchestrator that:
 - Initializes agents from config and manages their lifecycle
 - Runs event-driven loop where agents wake on incoming messages
 - Provides human direction input via readline interface
@@ -40,10 +40,10 @@ This is a multi-agent proxy system where multiple Claude agents communicate peer
 ### Data Flow
 
 1. Human provides direction via stdin
-2. AgentProxy sends initial prompt to architect agent
+2. Gimbal sends initial prompt to architect agent
 3. Agents use messaging tools to communicate via MessageQueue
 4. MessageQueue delivers to recipient queues, triggers wakeup callbacks
-5. AgentProxy runs agent loops that process incoming messages
+5. Gimbal runs agent loops that process incoming messages
 6. Agents can use code tools (Read, Edit, Write, Bash, Glob, Grep) based on their config
 
 ### Agent Configuration

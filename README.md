@@ -1,19 +1,19 @@
-# agent-proxy
+# gimbal
 
 Multi-agent proxy for peer-to-peer Claude communication. A CLI tool that orchestrates a team of AI agents to collaboratively analyze codebases, propose improvements, and implement changes.
 
-## What is agent-proxy?
+## What is gimbal?
 
-agent-proxy is a command-line tool that runs a multi-agent system where specialized AI agents work together to understand and improve your codebase. Three agents collaborate: an Architect proposes improvements, a Developer implements them, and a Staff Engineer ensures quality through review and approval.
+gimbal is a command-line tool that runs a multi-agent system where specialized AI agents work together to understand and improve your codebase. Three agents collaborate: an Architect proposes improvements, a Developer implements them, and a Staff Engineer ensures quality through review and approval.
 
 ## Installation
 
 ### Global Installation (Recommended)
 
-Install globally to use `agent-proxy` from anywhere:
+Install globally to use `gimbal` from anywhere:
 
 ```bash
-npm install -g agent-proxy
+npm install -g gimbal
 ```
 
 ### One-Off Usage
@@ -21,7 +21,7 @@ npm install -g agent-proxy
 Run without installation using npx:
 
 ```bash
-npx agent-proxy
+npx gimbal
 ```
 
 ## Quick Start
@@ -31,7 +31,7 @@ npx agent-proxy
 Simply run the command and respond to the prompt:
 
 ```bash
-agent-proxy
+gimbal
 ```
 
 You'll see:
@@ -46,7 +46,7 @@ Type your task (e.g., "Add user authentication" or "Optimize database queries") 
 Skip the interactive prompt by providing a direction directly:
 
 ```bash
-agent-proxy --direction "Refactor the authentication module"
+gimbal --direction "Refactor the authentication module"
 ```
 
 ### Custom Working Directory
@@ -54,7 +54,7 @@ agent-proxy --direction "Refactor the authentication module"
 Run agents in a specific directory:
 
 ```bash
-agent-proxy --dir /path/to/your/project --direction "Review error handling"
+gimbal --dir /path/to/your/project --direction "Review error handling"
 ```
 
 ## CLI Reference
@@ -65,7 +65,7 @@ Specify the working directory for the agents. Defaults to the current directory.
 
 **Example:**
 ```bash
-agent-proxy --dir ~/my-project
+gimbal --dir ~/my-project
 ```
 
 ### `--direction <text>`
@@ -74,7 +74,7 @@ Provide the initial task direction for the agents, bypassing the interactive pro
 
 **Example:**
 ```bash
-agent-proxy --direction "Add comprehensive logging"
+gimbal --direction "Add comprehensive logging"
 ```
 
 ### `--help` / `-h`
@@ -83,21 +83,21 @@ Display help information and usage examples.
 
 **Example:**
 ```bash
-agent-proxy --help
+gimbal --help
 ```
 
 ### `--version` / `-v`
 
-Show the current version of agent-proxy.
+Show the current version of gimbal.
 
 **Example:**
 ```bash
-agent-proxy --version
+gimbal --version
 ```
 
 ## How It Works
 
-When you run agent-proxy, three specialized agents collaborate in communication channels:
+When you run gimbal, three specialized agents collaborate in communication channels:
 
 - **Architect** analyzes the codebase and proposes improvements in `#planning`
 - **Developer** implements the approved changes in `#implementation`
@@ -113,7 +113,7 @@ The agents communicate through channels (similar to Slack/Discord), discuss appr
 
 ```bash
 git clone <repository-url>
-cd agent-proxy
+cd gimbal
 npm install
 npm run build
 ```

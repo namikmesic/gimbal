@@ -1,12 +1,12 @@
 # Retrospective Log
 
-Learnings from agent-proxy improvement cycles.
+Learnings from gimbal improvement cycles.
 
 ---
 
 ## 2026-02-02: CLI Interface Conversion
 
-**Feature:** Convert agent-proxy to proper CLI tool with `--dir`, `--direction`, `--help`, `--version` flags.
+**Feature:** Convert gimbal to proper CLI tool with `--dir`, `--direction`, `--help`, `--version` flags.
 
 **Commits:** `fcef2c1`, `b2c46fc` (fix), `d237077` (CHANGELOG)
 
@@ -92,7 +92,7 @@ Better format:
 
 ## 2026-02-02: README.md User Documentation
 
-**Feature:** Add user-facing documentation for agent-proxy CLI tool.
+**Feature:** Add user-facing documentation for gimbal CLI tool.
 
 **Commits:** `948be96` (README.md), `3b8c41e` (CHANGELOG)
 

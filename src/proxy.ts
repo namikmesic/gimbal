@@ -3,7 +3,7 @@ import { ProxyConfig } from "./types.js";
 import { MessageQueue } from "./message-queue.js";
 import { AgentSession } from "./agent-session.js";
 
-export class AgentProxy {
+export class Gimbal {
   private config: ProxyConfig;
   private messageQueue: MessageQueue;
   private agents: Map<string, AgentSession> = new Map();

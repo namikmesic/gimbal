@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the agent-proxy-experiment will be documented in this file.
+All notable changes to the gimbal-experiment will be documented in this file.
 
 ## [Unreleased]
 
@@ -38,8 +38,8 @@ All notable changes to the agent-proxy-experiment will be documented in this fil
 
 ---
 
-#### CLI Interface for agent-proxy
-- Converted agent-proxy into a proper CLI tool installable globally via `npm install -g`
+#### CLI Interface for gimbal
+- Converted gimbal into a proper CLI tool installable globally via `npm install -g`
 - Added command-line flags: `--dir`, `--direction`, `--help`, `--version`
 - Refactored `src/index.ts` to export `createAgentProxy()` function for programmatic use
 - Created `src/cli.ts` as CLI entry point with argument parsing and validation
@@ -55,11 +55,11 @@ All notable changes to the agent-proxy-experiment will be documented in this fil
 
 **CLI Usage:**
 ```bash
-agent-proxy                              # Interactive mode
-agent-proxy --dir ./my-project           # Specify working directory
-agent-proxy --direction "Fix auth bug"   # Pre-set direction (skips prompt)
-agent-proxy --help                       # Show usage
-agent-proxy --version                    # Show version
+gimbal                              # Interactive mode
+gimbal --dir ./my-project           # Specify working directory
+gimbal --direction "Fix auth bug"   # Pre-set direction (skips prompt)
+gimbal --help                       # Show usage
+gimbal --version                    # Show version
 ```
 
 **Verification:**

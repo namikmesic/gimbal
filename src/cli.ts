@@ -2,7 +2,7 @@
 import * as readline from "readline";
 import * as fs from "fs";
 import * as path from "path";
-import { createAgentProxy } from "./index.js";
+import { createGimbal } from "./index.js";
 
 interface ParsedArgs {
   dir?: string;
@@ -45,7 +45,7 @@ function parseArgs(args: string[]): ParsedArgs {
 
 function showHelp(): void {
   console.log(`
-Usage: agent-proxy [options]
+Usage: gimbal [options]
 
 Options:
   --dir <path>        Working directory for agents (default: current directory)
@@ -54,10 +54,10 @@ Options:
   --version, -v       Show version number
 
 Examples:
-  agent-proxy                                    # Interactive mode
-  agent-proxy --dir ./my-project                 # Specify working directory
-  agent-proxy --direction "Fix auth bug"         # Pre-set direction
-  agent-proxy --dir ./project --direction "..."  # Combined options
+  gimbal                                    # Interactive mode
+  gimbal --dir ./my-project                 # Specify working directory
+  gimbal --direction "Fix auth bug"         # Pre-set direction
+  gimbal --dir ./project --direction "..."  # Combined options
 `);
 }
 
@@ -151,8 +151,8 @@ async function main() {
     process.exit(0);
   });
 
-  // Create and run agent proxy
-  await createAgentProxy({
+  // Create and run gimbal
+  await createGimbal({
     workingDirectory,
     initialDirection: direction,
   });
