@@ -42,7 +42,10 @@ export class OrchestratorImpl implements IOrchestrator {
     this.messageStore = new MessageStoreImpl();
     this.channelRegistry = new ChannelRegistryImpl();
     this.messageRouter = new MessageRouterImpl(this.messageStore, this.channelRegistry);
-    this.signOffTracker = new SignOffTrackerImpl(config.agents.length);
+    const workflowAgentCount = config.agents.filter(
+      (agent) => (agent.agentType ?? "workflow") === "workflow"
+    ).length;
+    this.signOffTracker = new SignOffTrackerImpl(workflowAgentCount);
     this.humanDirector = new HumanDirectorImpl();
     this.checkpointGate = new CheckpointGateImpl();
 
@@ -160,6 +163,11 @@ export class OrchestratorImpl implements IOrchestrator {
         pending.resolve();
       }
       this.messageRouter.unregisterWakeup(agentId);
+    }
+
+    // Stop all agents (both workflow and support)
+    for (const agent of this.agents.values()) {
+      agent.stop();
     }
   }
 

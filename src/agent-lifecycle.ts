@@ -80,6 +80,8 @@ export class AgentLifecycleImpl implements IAgentLifecycle {
 
   async stop(): Promise<void> {
     this.agentState.lifecycleState = "stopped";
+    this.agentState.sessionId = undefined;
+    console.log(`[${this.config.id}] Agent stopped`);
   }
 
   async reset(): Promise<void> {
@@ -297,19 +299,25 @@ export class AgentLifecycleImpl implements IAgentLifecycle {
       }
     );
 
+    const baseTools = [
+      sendMessageTool,
+      broadcastTool,
+      listAgentsTool,
+      subscribeTool,
+      unsubscribeTool,
+      publishTool,
+      listChannelsTool,
+    ];
+
+    const agentType = this.config.agentType ?? "workflow";
+    const allTools = agentType === "workflow"
+      ? [...baseTools, signOffTool]
+      : baseTools;
+
     return createSdkMcpServer({
       name: `messaging-${agentId}`,
       version: "1.0.0",
-      tools: [
-        sendMessageTool,
-        broadcastTool,
-        listAgentsTool,
-        subscribeTool,
-        unsubscribeTool,
-        publishTool,
-        listChannelsTool,
-        signOffTool,
-      ],
+      tools: allTools,
     });
   }
 
@@ -388,7 +396,7 @@ Be collaborative and helpful to other agents.`;
         let sessionId: string | undefined;
 
         // Messaging tools available to all agents
-        const messagingTools = [
+        const baseMessagingTools = [
           "mcp__messaging__send_message",
           "mcp__messaging__broadcast",
           "mcp__messaging__list_agents",
@@ -396,8 +404,12 @@ Be collaborative and helpful to other agents.`;
           "mcp__messaging__unsubscribe",
           "mcp__messaging__publish",
           "mcp__messaging__list_channels",
-          "mcp__messaging__sign_off",
         ];
+
+        const agentType = this.config.agentType ?? "workflow";
+        const messagingTools = agentType === "workflow"
+          ? [...baseMessagingTools, "mcp__messaging__sign_off"]
+          : baseMessagingTools;
 
         // Code tools from agent config (defaults to empty array if not specified)
         const codeTools = this.config.tools || [];

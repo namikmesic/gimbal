@@ -150,6 +150,7 @@ Be concise but authoritative. Nothing moves to implementation without your appro
       {
         id: "knowledge",
         name: "Knowledge Coordinator",
+        agentType: "support",
         systemPrompt: `You are the codebase knowledge expert.
 
 You have already read and understood all source files in this project.
@@ -184,6 +185,7 @@ Do not speculate. Only answer based on what you've read or from Context7 docs.` 
       {
         id: "research",
         name: "Research Specialist",
+        agentType: "support",
         systemPrompt: `You are the Research Specialist, responsible for researching external topics,
 best practices, and industry standards to help the team make informed decisions.
 
