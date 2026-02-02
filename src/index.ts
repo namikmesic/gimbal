@@ -58,11 +58,13 @@ export interface GimbalOptions {
   workingDirectory?: string;
   initialDirection?: string;
   selfImproveMode?: boolean;
+  storeTranscripts?: boolean;
 }
 
 export async function createGimbal(options: GimbalOptions = {}): Promise<void> {
   const config: ProxyConfig = {
     workingDirectory: options.workingDirectory || process.env.GIMBAL_WORKDIR || process.cwd(),
+    storeTranscripts: options.storeTranscripts,
     agents: [
       {
         id: "architect",

@@ -14,6 +14,7 @@ import { SignOffTrackerImpl } from "./sign-off-tracker.js";
 import { HumanDirectorImpl } from "./human-director.js";
 import { AgentLifecycleImpl } from "./agent-lifecycle.js";
 import { CheckpointGateImpl } from "./checkpoint.js";
+import { TranscriptWriterImpl } from "./transcript-writer.js";
 
 /**
  * Main orchestrator that coordinates all agents and workflow.
@@ -27,6 +28,7 @@ export class OrchestratorImpl implements IOrchestrator {
   private signOffTracker: SignOffTrackerImpl;
   private humanDirector: HumanDirectorImpl;
   private checkpointGate: CheckpointGateImpl;
+  private transcriptWriter: TranscriptWriterImpl;
   private agents: Map<AgentId, AgentLifecycleImpl> = new Map();
   private agentWakeups: Map<AgentId, { resolve: () => void } | null> = new Map();
   private running = false;
@@ -41,7 +43,15 @@ export class OrchestratorImpl implements IOrchestrator {
     // Initialize SRP components
     this.messageStore = new MessageStoreImpl();
     this.channelRegistry = new ChannelRegistryImpl();
-    this.messageRouter = new MessageRouterImpl(this.messageStore, this.channelRegistry);
+    this.transcriptWriter = new TranscriptWriterImpl(
+      config.workingDirectory || process.cwd(),
+      config.storeTranscripts ?? false
+    );
+    this.messageRouter = new MessageRouterImpl(
+      this.messageStore,
+      this.channelRegistry,
+      this.transcriptWriter
+    );
     const workflowAgentCount = config.agents.filter(
       (agent) => (agent.agentType ?? "workflow") === "workflow"
     ).length;
@@ -158,6 +168,9 @@ export class OrchestratorImpl implements IOrchestrator {
   stop(): void {
     this.running = false;
     console.log("[Orchestrator] Stopping...");
+
+    // End transcript session
+    this.transcriptWriter.endSession();
 
     // Stop human director
     this.humanDirector.stopListening();
@@ -291,6 +304,9 @@ Channels:`);
     this.running = true;
 
     console.log(`[Orchestrator] Starting event-driven loop`);
+
+    // Start transcript session
+    this.transcriptWriter.startSession();
 
     // Register wakeup callbacks
     for (const agentId of this.agents.keys()) {

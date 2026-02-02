@@ -9,6 +9,7 @@ import {
   getChannelId,
 } from "./types.js";
 import { MessageStoreImpl } from "./message-store.js";
+import { TranscriptWriterImpl } from "./transcript-writer.js";
 
 type WakeupCallback = () => void;
 
@@ -21,10 +22,16 @@ export class MessageRouterImpl implements IMessageRouter {
   private wakeups: Map<AgentId, WakeupCallback> = new Map();
   private store: MessageStoreImpl;
   private channelRegistry: ChannelRegistry;
+  private transcriptWriter?: TranscriptWriterImpl;
 
-  constructor(store: MessageStoreImpl, channelRegistry: ChannelRegistry) {
+  constructor(
+    store: MessageStoreImpl,
+    channelRegistry: ChannelRegistry,
+    transcriptWriter?: TranscriptWriterImpl
+  ) {
     this.store = store;
     this.channelRegistry = channelRegistry;
+    this.transcriptWriter = transcriptWriter;
   }
 
   registerWakeup(agentId: AgentId, callback: WakeupCallback): void {
@@ -55,6 +62,7 @@ export class MessageRouterImpl implements IMessageRouter {
     };
 
     this.store.enqueue(to, message);
+    this.transcriptWriter?.recordMessage(message);
     console.log(`\n${"─".repeat(60)}`);
     console.log(`[${from} -> ${to}]`);
     console.log(envelope.content);
@@ -82,6 +90,9 @@ export class MessageRouterImpl implements IMessageRouter {
       replyTo: envelope.replyTo,
       channel: channelId,
     };
+
+    // Record to transcript once for channel messages
+    this.transcriptWriter?.recordMessage(message);
 
     let deliveredCount = 0;
     for (const subscriberId of subscribers) {

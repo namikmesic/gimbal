@@ -11,6 +11,7 @@ interface ParsedArgs {
   help?: boolean;
   version?: boolean;
   selfImprove?: boolean;
+  storeTranscripts?: boolean;
 }
 
 function parseArgs(args: string[]): ParsedArgs {
@@ -37,6 +38,8 @@ function parseArgs(args: string[]): ParsedArgs {
       parsed.direction = args[++i];
     } else if (arg === "--self-improve") {
       parsed.selfImprove = true;
+    } else if (arg === "--store-transcripts") {
+      parsed.storeTranscripts = true;
     } else {
       console.error(`Error: Unknown option: ${arg}\n`);
       showHelp();
@@ -55,6 +58,7 @@ Options:
   --dir <path>         Working directory for agents (default: current directory)
   --direction <text>   Initial direction for agents (skips interactive prompt)
   --self-improve       Run in self-improvement mode (gimbal improves itself)
+  --store-transcripts  Save conversation transcript to TRANSCRIPT.md
   --help, -h           Show this help message
   --version, -v        Show version number
 
@@ -199,6 +203,7 @@ async function main() {
     workingDirectory,
     initialDirection: direction,
     selfImproveMode: args.selfImprove || false,
+    storeTranscripts: args.storeTranscripts || false,
   });
 }
 
