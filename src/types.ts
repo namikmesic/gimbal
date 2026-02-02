@@ -25,12 +25,20 @@ export function getChannelId(name: string): string {
 // Valid tool names for agent permissions
 export type ToolName = "Read" | "Edit" | "Write" | "Bash" | "Glob" | "Grep";
 
+// Configuration for external MCP servers (e.g., Context7 for library documentation)
+export interface ExternalMcpServerConfig {
+  command: string;
+  args?: string[];
+  env?: Record<string, string>;
+}
+
 export interface AgentConfig {
   id: string;
   name: string;
   systemPrompt: string;
   model?: "sonnet" | "opus" | "haiku";
   tools?: ToolName[]; // Optional: code tools this agent can access (defaults to none)
+  mcpServers?: Record<string, ExternalMcpServerConfig>; // Optional: external MCP servers for this agent
 }
 
 export interface AgentState {

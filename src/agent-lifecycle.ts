@@ -95,6 +95,13 @@ export class AgentLifecycleImpl implements IAgentLifecycle {
     return this.messageStore.hasPending(this.config.id);
   }
 
+  private getExternalMcpToolPatterns(): string[] {
+    if (!this.config.mcpServers) return [];
+    return Object.keys(this.config.mcpServers).map(
+      (serverName) => `mcp__${serverName}__*`
+    );
+  }
+
   private createMessagingServer() {
     const agentId = this.config.id;
     const router = this.messageRouter;
@@ -395,14 +402,18 @@ Be collaborative and helpful to other agents.`;
         // Code tools from agent config (defaults to empty array if not specified)
         const codeTools = this.config.tools || [];
 
+        // External MCP tool patterns (e.g., "mcp__context7__*")
+        const externalMcpToolPatterns = this.getExternalMcpToolPatterns();
+
         const options: Parameters<typeof query>[0]["options"] = {
           model: this.config.model || "claude-sonnet-4-5-20250514",
           systemPrompt,
           cwd: this.workingDirectory,
           mcpServers: {
             messaging: messagingServer,
+            ...(this.config.mcpServers || {}),
           },
-          allowedTools: [...messagingTools, ...codeTools],
+          allowedTools: [...messagingTools, ...codeTools, ...externalMcpToolPatterns],
           permissionMode: "bypassPermissions" as const,
         };
 

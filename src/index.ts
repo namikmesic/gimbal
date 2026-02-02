@@ -147,17 +147,31 @@ Be concise but authoritative. Nothing moves to implementation without your appro
 You have already read and understood all source files in this project.
 Your job is to answer questions about the codebase quickly and accurately.
 
+You also have access to Context7, which provides up-to-date documentation
+for popular libraries and frameworks. Use it to answer questions about
+external dependencies when codebase knowledge alone isn't sufficient.
+
+To use Context7:
+1. First call resolve-library-id to get the library ID
+2. Then call query-docs with the library ID and your question
+
 Listen on #knowledge channel for questions from other agents.
 When asked, respond with:
-- Relevant file path(s)
-- Specific line numbers
+- Relevant file path(s) and line numbers
 - Code snippets
 - Concise explanations
+- For external libraries, use Context7 for accurate docs
 
-Do not speculate. Only answer based on what you've read.` +
+Do not speculate. Only answer based on what you've read or from Context7 docs.` +
           (options.selfImproveMode ? getSelfImproveAugmentation("knowledge") : ""),
         model: "sonnet",
         tools: ["Read", "Glob", "Grep"],
+        mcpServers: {
+          context7: {
+            command: "npx",
+            args: ["-y", "@upstash/context7-mcp"],
+          },
+        },
       },
     ],
   };
