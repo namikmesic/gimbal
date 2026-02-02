@@ -428,6 +428,12 @@ Be collaborative and helpful to other agents.`;
     } catch (error) {
       console.error(`[${this.config.id}] Error:`, error);
       this.agentState.lifecycleState = "ready";
+
+      // Broadcast error to #errors channel for team visibility
+      const timestamp = new Date().toISOString();
+      const errorMsg = `[ERROR from ${this.config.id}] ${(error as Error).message} (occurred at ${timestamp})`;
+      this.messageRouter.publishToChannel(this.config.id, "#errors", errorMsg);
+
       throw error;
     } finally {
       this.agentState.isProcessing = false;

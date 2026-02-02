@@ -190,6 +190,10 @@ Do not speculate. Only answer based on what you've read.` +
   orchestrator.subscribeAgentToChannel("knowledge", "#knowledge");
   console.log("Knowledge agent subscribed to #knowledge channel\n");
 
+  // Subscribe staff agent to #errors channel for error visibility
+  orchestrator.subscribeAgentToChannel("staff", "#errors");
+  console.log("Staff agent subscribed to #errors channel\n");
+
   // Initialize knowledge agent
   console.log("\n[Demo] Initializing knowledge agent...\n");
   const knowledgeResponse = await orchestrator.sendInitialPrompt(
