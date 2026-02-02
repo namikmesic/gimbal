@@ -315,6 +315,16 @@ Verify TypeScript compiles without errors:
 npx tsc --noEmit
 ```
 
+### Testing
+
+Run the test suite:
+
+```bash
+npm test
+```
+
+For comprehensive verification steps, see RETROSPECTIVE.md.
+
 ## Documentation
 
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Technical architecture and implementation details

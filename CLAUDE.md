@@ -7,8 +7,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 npm run dev          # Run the multi-agent system (tsx src/index.ts)
 npm run build        # Compile TypeScript to dist/
+npm test             # Run test suite (smoke tests + build verification)
 npx tsc --noEmit     # Type-check without emitting (use to verify changes compile)
 ```
+
+For comprehensive pre-commit verification steps, see RETROSPECTIVE.md lines 51-63.
 
 ## Architecture Overview
 
