@@ -1,5 +1,6 @@
 import { query, createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
+import * as readline from "readline";
 import {
   AgentConfig,
   AgentId,
@@ -336,6 +337,122 @@ export class AgentLifecycleImpl implements IAgentLifecycle {
     return `\n--- INCOMING MESSAGES ---\n${formatted}\n--- END MESSAGES ---\n`;
   }
 
+  private truncateInput(input: string, maxLength: number = 500): string {
+    if (input.length <= maxLength) {
+      return input;
+    }
+    return input.substring(0, maxLength) + "\n[...truncated]";
+  }
+
+  private formatToolInput(toolName: string, input: Record<string, unknown>): string {
+    if (toolName === "Bash") {
+      const command = input.command as string;
+      const description = input.description as string;
+      return `Command: ${this.truncateInput(command)}\n${description ? `Description: ${description}` : ""}`;
+    } else if (toolName === "Edit") {
+      const filePath = input.file_path as string;
+      const oldString = input.old_string as string;
+      const newString = input.new_string as string;
+      return `File: ${filePath}\nOld: ${this.truncateInput(oldString)}\nNew: ${this.truncateInput(newString)}`;
+    } else if (toolName === "Write") {
+      const filePath = input.file_path as string;
+      const content = input.content as string;
+      return `File: ${filePath}\nContent: ${this.truncateInput(content)}`;
+    } else {
+      // Generic formatting for other tools
+      const formatted = Object.entries(input)
+        .map(([key, value]) => `${key}: ${this.truncateInput(String(value))}`)
+        .join("\n");
+      return formatted;
+    }
+  }
+
+  private async promptForPermission(
+    toolName: string,
+    input: Record<string, unknown>,
+    options: {
+      signal: AbortSignal;
+      blockedPath?: string;
+      decisionReason?: string;
+      toolUseID: string;
+    }
+  ): Promise<{ behavior: "allow"; updatedInput?: Record<string, unknown> } | { behavior: "deny"; message: string }> {
+    // Auto-approve safe operations
+    const autoApproveTools = [
+      // Messaging tools
+      "mcp__messaging__send_message",
+      "mcp__messaging__broadcast",
+      "mcp__messaging__list_agents",
+      "mcp__messaging__subscribe",
+      "mcp__messaging__unsubscribe",
+      "mcp__messaging__publish",
+      "mcp__messaging__list_channels",
+      "mcp__messaging__sign_off",
+      // Read-only tools
+      "Read",
+      "Glob",
+      "Grep",
+    ];
+
+    // Auto-approve external MCP tools (except our messaging tools which are already handled)
+    if (toolName.startsWith("mcp__") && !toolName.startsWith("mcp__messaging__")) {
+      return { behavior: "allow" };
+    }
+
+    // Auto-approve safe tools
+    if (autoApproveTools.includes(toolName)) {
+      return { behavior: "allow" };
+    }
+
+    // For all other tools, prompt for permission
+    return new Promise((resolve) => {
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      });
+
+      const formattedInput = this.formatToolInput(toolName, input);
+
+      console.log("\n⚠️  PERMISSION REQUEST");
+      console.log(`Tool: ${toolName}`);
+      console.log(formattedInput);
+      if (options.decisionReason) {
+        console.log(`Reason: ${options.decisionReason}`);
+      }
+
+      // Handle timeout via AbortSignal
+      const timeoutHandler = () => {
+        rl.close();
+        resolve({
+          behavior: "deny",
+          message: "Permission request timed out after 60 seconds. Please try again.",
+        });
+      };
+
+      if (options.signal.aborted) {
+        timeoutHandler();
+        return;
+      }
+
+      options.signal.addEventListener("abort", timeoutHandler);
+
+      rl.question("[A]llow / [D]eny: ", (answer) => {
+        rl.close();
+        options.signal.removeEventListener("abort", timeoutHandler);
+
+        const normalized = answer.toLowerCase().trim();
+        if (["allow", "a", "yes", "y"].includes(normalized)) {
+          resolve({ behavior: "allow" });
+        } else {
+          resolve({
+            behavior: "deny",
+            message: `User denied permission to use ${toolName}. Please try a different approach or ask the user for clarification.`,
+          });
+        }
+      });
+    });
+  }
+
   async processMessages(initialPrompt?: string): Promise<string> {
     if (this.agentState.isProcessing) {
       return "Agent is busy processing";
@@ -426,7 +543,10 @@ Be collaborative and helpful to other agents.`;
             ...(this.config.mcpServers || {}),
           },
           allowedTools: [...messagingTools, ...codeTools, ...externalMcpToolPatterns],
-          permissionMode: "bypassPermissions" as const,
+          permissionMode: "default" as const,
+          canUseTool: async (toolName, input, permissionOptions) => {
+            return this.promptForPermission(toolName, input, permissionOptions);
+          },
         };
 
         if (this.agentState.sessionId) {
