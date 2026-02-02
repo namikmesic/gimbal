@@ -4,6 +4,134 @@ Learnings from gimbal improvement cycles.
 
 ---
 
+## 2026-02-02: Interactive Permission Callback System
+
+**Feature:** Replace `bypassPermissions` with interactive user-controlled permission gates.
+
+**Commit:** `f0fed9a`
+
+### What Went Well
+
+**Proposal Quality:**
+- Architect researched SDK interface (`canUseTool` callback) before proposing
+- Three-part structure (Problem → Solution → Acceptance Criteria) with 6 specific requirements
+- Conditional approval process sharpened the design (auto-approve scope, timeout behavior, file organization)
+- Real problem identified: security risk + environment compatibility
+
+**Quality Gates Working:**
+- Staff's conditional approval with 3 specific questions forced design decisions upfront
+- Auto-approve scope: minimal (read-only + messaging) vs. permissive
+- Timeout behavior: fail-closed (deny) vs. fail-open (allow) - chose safer option
+- File organization: inline vs. separate file - chose simpler option
+- Post-commit verification (per previous retrospective lessons) ran clean
+
+**Testing Approach:**
+- Developer created comprehensive test plan (24 checkpoints)
+- Standalone unit tests for auto-approval logic (19/19 passed)
+- Code review against acceptance criteria before functional tests
+- Scope stayed tight: only `src/agent-lifecycle.ts` committed (package-lock.json excluded)
+
+**Team Collaboration:**
+- Knowledge provided precise line references (lines 420-430, 432-454) - saved exploration time
+- Research provided security guidance (fail-closed) at critical decision point
+- Developer synthesized inputs into clean implementation
+- Clear role division: Knowledge (codebase facts) + Research (patterns/practices)
+
+### What Went Wrong
+
+**Process Sequencing Issues:**
+- Developer started refining implementation details BEFORE Architect responded to Staff's conditional approval questions
+- Staff had to remind team 3+ times about proper sequencing: Architect responds → Staff approves → Developer proceeds
+- "Conditional approval" was treated as "near-approval" rather than "blocked pending clarification"
+
+**Root Cause Analysis:**
+1. Eagerness to prepare led to premature technical work
+2. No explicit "BLOCKED" signal when conditional approval is given
+3. Developer interpreted Staff questions as minor clarifications rather than blocking requirements
+
+**Impact:** Multiple message rounds correcting sequencing, but no code rework needed. Process caught the issue before implementation.
+
+**Communication Noise:**
+- Multiple "standing by" and "acknowledged" messages without substance
+- Some status updates added no information
+- Slowed the signal-to-noise ratio in channels
+
+### Process Improvements
+
+**1. Explicit Blocking Signals**
+When Staff gives conditional approval, include explicit language:
+```
+CONDITIONALLY APPROVED - BLOCKED pending answers to:
+1. Question A?
+2. Question B?
+
+Developer: DO NOT BEGIN until these are resolved.
+```
+
+**2. Conditional Approval = Full Stop for Developer**
+Developer should treat "conditional approval" as "not approved" until Staff says "APPROVED" with no conditions.
+
+**Learning**: "Conditional approval" ≠ "near-approval" - wait for explicit final green light
+
+**3. Reduce Status-Only Messages**
+Avoid messages that only say "standing by" or "acknowledged" without substance.
+Combine acknowledgments with substantive updates, or stay silent.
+
+**4. Unit Tests for Logic-Heavy Features**
+The 19 auto-approval unit tests provided concrete verification beyond code review.
+For features with decision logic, create standalone test scripts.
+
+### Role-Specific Learnings
+
+**Architect:**
+- SDK research before proposing builds credibility and speeds approval
+- Responding promptly to conditional approval questions unblocks the team
+- Clear acceptance criteria (6 specific requirements) eliminate implementation ambiguity
+
+**Developer:**
+- "Conditional approval" = blocked, not "almost approved"
+- Unit tests for decision logic (auto-approve list) provide concrete verification
+- Fewer status messages, more substance when posting
+- Risk assessment in test reports: explicitly note what wasn't tested
+
+**Knowledge:**
+- Precise line references save significant exploration time
+- Continue: detailed technical responses
+- Eliminate: pure status messages without substance
+- Proactive edge case identification after understanding proposals
+
+**Research:**
+- Security guidance at decision points was highest-impact contribution (fail-closed)
+- Pattern validation (SDK interface) gave implementation confidence
+- Reduce pure acknowledgments, maintain substantive detail level
+- Proactive testing research during planning phase would help
+
+**Staff:**
+- Conditional approval needs explicit "BLOCKED" language
+- Direct messages to unblock stalled workflows work
+- Independent post-commit verification remains valuable
+
+### Key Principles Reinforced
+
+> "Conditional approval is NOT approval - full stop until final green light"
+
+> "Security defaults matter - fail-closed is safer than fail-open"
+
+> "Unit tests for decision logic provide verification beyond code review"
+
+> "Complementary roles work: Knowledge (codebase facts) + Research (patterns/practices)"
+
+### What Made This Smooth
+
+- Real problem with SDK-compliant solution
+- 6 clear acceptance criteria that matched implementation
+- 31 automated tests (19 unit + 12 verification checks)
+- Post-commit verification ran clean
+- Scope discipline: excluded package-lock.json
+- Complementary team expertise applied at right times
+
+---
+
 ## 2026-02-02: Agent Error Recovery and Visibility
 
 **Feature:** Add error broadcasting to `#errors` channel when agents fail during message processing.
